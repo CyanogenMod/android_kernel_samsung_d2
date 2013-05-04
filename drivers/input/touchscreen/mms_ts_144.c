@@ -254,6 +254,9 @@ const struct firmware *fw_mbin[SECTION_NUM];
 static unsigned char g_wr_buf[1024 + 3 + 2];
 #endif
 
+unsigned int Lpanel_colors = 2;
+extern void panel_load_colors(unsigned int val);
+
 int touch_is_pressed;
 EXPORT_SYMBOL(touch_is_pressed);
 
@@ -2898,6 +2901,35 @@ static ssize_t show_intensity_logging_off(struct device *dev,
 
 #endif
 
+static ssize_t panel_colors_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", Lpanel_colors);
+}
+
+static ssize_t panel_colors_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
+{
+	int ret;
+	unsigned int value;
+
+	ret = sscanf(buf, "%d\n", &value);
+	if (ret != 1)
+		return -EINVAL;
+
+	if (value < 0)
+		value = 0;
+	else if (value > 4)
+		value = 4;
+
+	Lpanel_colors = value;
+
+	panel_load_colors(Lpanel_colors);
+
+	return size;
+}
+
+static DEVICE_ATTR(panel_colors, S_IRUGO | S_IWUSR | S_IWGRP,
+	panel_colors_show, panel_colors_store);
+
 static DEVICE_ATTR(close_tsp_test, S_IRUGO, show_close_tsp_test, NULL);
 static DEVICE_ATTR(cmd, S_IWUSR | S_IWGRP, NULL, store_cmd);
 static DEVICE_ATTR(cmd_status, S_IRUGO, show_cmd_status, NULL);
@@ -2918,6 +2950,7 @@ static struct attribute *sec_touch_facotry_attributes[] = {
 		&dev_attr_intensity_logging_on.attr,
 		&dev_attr_intensity_logging_off.attr,
 #endif
+		&dev_attr_panel_colors.attr,
 		NULL,
 };
 
