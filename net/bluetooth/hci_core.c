@@ -1001,10 +1001,14 @@ static void hci_power_on(struct work_struct *work)
 	BT_DBG("%s", hdev->name);
 
 	err = hci_dev_open(hdev->id);
-	if (err < 0) {
+        if (err < 0) {
 		mgmt_set_powered_failed(hdev->id, err);
-		return;
-	}
+                return;
+        }
+
+	// 3.4.49 mmontuori
+	// if (err && err != -EALREADY)
+	//	return;
 
 	if (test_bit(HCI_AUTO_OFF, &hdev->flags) &&
 				hdev->dev_type == HCI_BREDR)

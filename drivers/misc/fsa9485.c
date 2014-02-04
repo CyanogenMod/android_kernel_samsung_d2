@@ -136,7 +136,9 @@
 #define	ADC_CARDOCK		0x1d
 #define	ADC_OPEN		0x1f
 
-int uart_connecting;
+extern int force_fast_charge;
+
+int uart_connecting = 0;
 EXPORT_SYMBOL(uart_connecting);
 
 int detached_status;
@@ -645,8 +647,24 @@ static int fsa9485_detect_dev(struct fsa9485_usbsw *usbsw)
 		if (val1 & DEV_USB || val2 & DEV_T2_USB_MASK) {
 			dev_info(&client->dev, "usb connect\n");
 
-			if (pdata->usb_cb)
-				pdata->usb_cb(FSA9485_ATTACHED);
+			msleep(10);
+
+			ret = i2c_smbus_write_byte_data(client,
+					FSA9485_REG_MANSW1, SW_AUTO);
+			if (ret < 0)
+				dev_err(&client->dev,
+						"%s: err %d\n", __func__, ret);
+
+			ret = i2c_smbus_write_byte_data(client,
+					FSA9485_REG_CTRL, 0x1E);
+			
+			if (pdata->usb_cb) {
+				if (force_fast_charge != 0) {
+					dev_info(&client->dev, "[imoseyon] fastcharge\n");
+					pdata->charger_cb(FSA9485_ATTACHED);
+				} else pdata->usb_cb(FSA9485_ATTACHED);
+			}
+
 			if (usbsw->mansw) {
 				ret = i2c_smbus_write_byte_data(client,
 				FSA9485_REG_MANSW1, usbsw->mansw);
