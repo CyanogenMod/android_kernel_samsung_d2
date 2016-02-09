@@ -15,8 +15,6 @@
  *  BAM DMUX module.
  */
 
-#define DEBUG
-
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
@@ -308,8 +306,6 @@ struct kfifo bam_dmux_state_log;
 static int bam_dmux_uplink_vote;
 static int bam_dmux_power_state;
 
-static void *bam_ipc_log_txt;
-
 #define BAM_IPC_LOG_PAGES 5
 
 /**
@@ -329,6 +325,15 @@ static void *bam_ipc_log_txt;
  * #: >=1 On-demand uplink vote
  * D: 1 = Disconnect ACK active
  */
+
+#ifdef DEBUG
+static void *bam_ipc_log_txt;
+
+#define DMUX_LOG_KERR(fmt, args...) \
+do { \
+	BAM_DMUX_LOG(fmt, args); \
+	pr_err(fmt, args); \
+} while (0)
 
 #define BAM_DMUX_LOG(fmt, args...) \
 do { \
@@ -386,6 +391,10 @@ static inline void verify_tx_queue_is_empty(const char *func)
 	}
 	spin_unlock_irqrestore(&bam_tx_pool_spinlock, flags);
 }
+#else
+#define DMUX_LOG_KERR(args...) do { } while (0)
+#define BAM_DMUX_LOG(args...) do { } while (0)
+#endif
 
 static void __queue_rx(gfp_t alloc_flags)
 {
@@ -684,7 +693,9 @@ static int bam_mux_write_cmd(void *data, uint32_t len)
 	pkt->len = len;
 	pkt->dma_address = dma_address;
 	pkt->is_cmd = 1;
+#ifdef DEBUG
 	set_tx_timestamp(pkt);
+#endif
 	INIT_WORK(&pkt->work, bam_mux_write_done);
 	spin_lock_irqsave(&bam_tx_pool_spinlock, flags);
 	list_add_tail(&pkt->list_node, &bam_tx_pool);
@@ -726,6 +737,7 @@ static void bam_mux_write_done(struct work_struct *work)
 	info_expected = list_first_entry(&bam_tx_pool,
 			struct tx_pkt_info, list_node);
 	if (unlikely(info != info_expected)) {
+#ifdef DEBUG
 		struct tx_pkt_info *errant_pkt;
 
 		DMUX_LOG_KERR("%s: bam_tx_pool mismatch .next=%p,"
@@ -740,6 +752,7 @@ static void bam_mux_write_done(struct work_struct *work)
 			errant_pkt->ts_nsec);
 
 		}
+#endif
 		spin_unlock_irqrestore(&bam_tx_pool_spinlock, flags);
 		BUG();
 	}
@@ -869,7 +882,9 @@ int msm_bam_dmux_write(uint32_t id, struct sk_buff *skb)
 	pkt->skb = skb;
 	pkt->dma_address = dma_address;
 	pkt->is_cmd = 0;
+#ifdef DEBUG
 	set_tx_timestamp(pkt);
+#endif
 	INIT_WORK(&pkt->work, bam_mux_write_done);
 	spin_lock_irqsave(&bam_tx_pool_spinlock, flags);
 	list_add_tail(&pkt->list_node, &bam_tx_pool);
@@ -1399,6 +1414,7 @@ static int debug_stats(char *buf, int max)
 {
 	int i = 0;
 
+#if 0
 	i += scnprintf(buf + i, max - i,
 			"skb read cnt:    %u\n"
 			"skb write cnt:   %u\n"
@@ -1421,6 +1437,7 @@ static int debug_stats(char *buf, int max)
 			atomic_read(&bam_dmux_ack_in_cnt),
 			atomic_read(&bam_dmux_a2_pwr_cntl_in_cnt)
 			);
+#endif
 
 	return i;
 }
@@ -1534,7 +1551,9 @@ static void power_vote(int vote)
 static inline void ul_powerdown(void)
 {
 	BAM_DMUX_LOG("%s: powerdown\n", __func__);
+#ifdef DEBUG
 	verify_tx_queue_is_empty(__func__);
+#endif
 
 	if (a2_pc_disabled) {
 		wait_for_dfab = 1;
@@ -1555,7 +1574,9 @@ static inline void ul_powerdown_finish(void)
 		unvote_dfab();
 		complete_all(&dfab_unvote_completion);
 		wait_for_dfab = 0;
+#ifdef DEBUG
 		bam_dmux_ratelimit = 0;
+#endif
 	}
 }
 
@@ -1637,6 +1658,7 @@ static void ul_timeout(struct work_struct *work)
 
 				info = list_first_entry(&bam_tx_pool,
 						struct tx_pkt_info, list_node);
+#ifdef DEBUG
 				if (!bam_dmux_ratelimit) {
 					DMUX_LOG_KERR
 					    ("%s: UL delayed ts=%u.%09lu\n",
@@ -1644,6 +1666,7 @@ static void ul_timeout(struct work_struct *work)
 					     info->ts_nsec);
 					bam_dmux_ratelimit++;
 				}
+#endif
 				DBG_INC_TX_STALL_CNT();
 				ul_packet_written = 1;
 			}
@@ -1908,7 +1931,9 @@ static void disconnect_to_bam(void)
 	if (disconnect_ack)
 		toggle_apps_ack();
 
+#ifdef DEBUG
 	verify_tx_queue_is_empty(__func__);
+#endif
 }
 
 static void vote_dfab(void)
@@ -2600,10 +2625,12 @@ static int __init bam_dmux_init(void)
 	}
 #endif
 
+#ifdef DEBUG
 	bam_ipc_log_txt = ipc_log_context_create(BAM_IPC_LOG_PAGES, "bam_dmux");
 	if (!bam_ipc_log_txt) {
 		pr_err("%s : unable to create IPC Logging Context", __func__);
 	}
+#endif
 
 	rx_timer_interval = DEFAULT_POLLING_MIN_SLEEP;
 

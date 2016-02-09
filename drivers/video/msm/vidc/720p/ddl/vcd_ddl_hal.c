@@ -16,13 +16,14 @@
 #include "vcd_ddl_utils.h"
 #include "vcd_ddl_metadata.h"
 
-#if DEBUG
+#ifdef DEBUG
 #define DBG(x...) printk(KERN_DEBUG x)
+#define DBG_INFO(x...) pr_info(x)
 #else
 #define DBG(x...)
+#define DBG_INFO(x...)
 #endif
 
-#define DBG_INFO(x...) pr_info(x)
 
 void ddl_core_init(struct ddl_context *ddl_context)
 {

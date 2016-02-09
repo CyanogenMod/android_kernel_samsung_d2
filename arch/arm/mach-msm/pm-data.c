@@ -12,6 +12,7 @@
 
 
 #include "pm.h"
+#include <linux/dkp.h>
 
 struct msm_pm_platform_data msm_pm_sleep_modes[] = {
 	[MSM_PM_MODE(0, MSM_PM_SLEEP_MODE_POWER_COLLAPSE)] = {
@@ -126,3 +127,21 @@ struct msm_pm_platform_data msm_pm_sleep_modes[] = {
 		.suspend_enabled = 0,
 	},
 };
+
+static int spc_enabled = 1;
+static void update_spc(void)
+{
+	int i;
+	for (i = 0; i < 3; i++)
+		msm_pm_sleep_modes[MSM_PM_MODE(i,
+			MSM_PM_SLEEP_MODE_POWER_COLLAPSE_STANDALONE)].idle_supported =
+			spc_enabled;
+}
+static __GATTR(spc_enabled, 0, 1, update_spc);
+
+static int __init register_spc(void)
+{
+	dkp_register(spc_enabled);
+	return 0;
+}
+late_initcall(register_spc);

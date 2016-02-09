@@ -15,6 +15,8 @@
 #include "adreno.h"
 #include "kgsl_snapshot.h"
 
+#if __adreno_is_a2xx
+
 #define DEBUG_SECTION_SZ(_dwords) (((_dwords) * sizeof(unsigned int)) \
 		+ sizeof(struct kgsl_snapshot_debug))
 
@@ -263,6 +265,13 @@ void *a2xx_snapshot(struct adreno_device *adreno_dev, void *snapshot,
 
 	/* Choose the register set to dump */
 
+#if CONFIG_AXXX_REV
+#define REGCAT(h, r, p) (h ## r ## p)
+#define REGFILE(r) REGCAT(a, r, _registers)
+#define REGCOUNT(r) REGCAT(a, r, _registers_count)
+	regs.regs = (unsigned int *) REGFILE(CONFIG_AXXX_REV);
+	regs.count = REGCOUNT(CONFIG_AXXX_REV);
+#else
 	if (adreno_is_a20x(adreno_dev)) {
 		regs.regs = (unsigned int *) a200_registers;
 		regs.count = a200_registers_count;
@@ -273,6 +282,7 @@ void *a2xx_snapshot(struct adreno_device *adreno_dev, void *snapshot,
 		regs.regs = (unsigned int *) a225_registers;
 		regs.count = a225_registers_count;
 	}
+#endif
 
 	list.registers = &regs;
 	list.count = 1;
@@ -380,3 +390,4 @@ void *a2xx_snapshot(struct adreno_device *adreno_dev, void *snapshot,
 
 	return snapshot;
 }
+#endif

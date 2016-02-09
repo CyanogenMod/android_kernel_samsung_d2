@@ -42,10 +42,7 @@ enum {
 	MSM_RPM_VREG_DEBUG_IGNORE_VDD_MEM_DIG = BIT(3),
 };
 
-static int msm_rpm_vreg_debug_mask;
-module_param_named(
-	debug_mask, msm_rpm_vreg_debug_mask, int, S_IRUSR | S_IWUSR
-);
+#define msm_rpm_vreg_debug_mask (0)
 
 /* Used for access via the rpm_regulator_* API. */
 struct rpm_regulator {
@@ -95,6 +92,7 @@ static int consumer_map_len;
 #define RPM_VREG_PIN_CTRL_EN3		0x08
 #define RPM_VREG_PIN_CTRL_ALL		0x0F
 
+#if 0
 static const char *label_freq[] = {
 	[RPM_VREG_FREQ_NONE]		= " N/A",
 	[RPM_VREG_FREQ_19p20]		= "19.2",
@@ -121,6 +119,7 @@ static const char *label_corner[] = {
 	[RPM_VREG_CORNER_NOMINAL]	= "NOM",
 	[RPM_VREG_CORNER_HIGH]		= "HIGH",
 };
+#endif
 
 /*
  * This is used when voting for LPM or HPM by subtracting or adding to the
@@ -142,128 +141,8 @@ static inline int vreg_id_is_vdd_mem_or_dig(int id)
 	return id == vreg_id_vdd_mem || id == vreg_id_vdd_dig;
 }
 
-#define DEBUG_PRINT_BUFFER_SIZE 512
-
 static void rpm_regulator_req(struct vreg *vreg, int set)
-{
-	int uV, mV, fm, pm, pc, pf, pd, freq, state, i;
-	const char *pf_label = "", *fm_label = "", *pc_total = "";
-	const char *pc_en[4] = {"", "", "", ""};
-	const char *pm_label = "", *freq_label = "", *corner_label = "";
-	char buf[DEBUG_PRINT_BUFFER_SIZE];
-	size_t buflen = DEBUG_PRINT_BUFFER_SIZE;
-	int pos = 0;
-
-	/* Suppress VDD_MEM and VDD_DIG printing. */
-	if ((msm_rpm_vreg_debug_mask & MSM_RPM_VREG_DEBUG_IGNORE_VDD_MEM_DIG)
-	    && vreg_id_is_vdd_mem_or_dig(vreg->id))
-		return;
-
-	uV = GET_PART(vreg, uV);
-	mV = GET_PART(vreg, mV);
-	if (vreg->type == RPM_REGULATOR_TYPE_NCP) {
-		uV = -uV;
-		mV = -mV;
-	}
-
-	fm = GET_PART(vreg, fm);
-	pm = GET_PART(vreg, pm);
-	pc = GET_PART(vreg, pc);
-	pf = GET_PART(vreg, pf);
-	pd = GET_PART(vreg, pd);
-	freq = GET_PART(vreg, freq);
-	state = GET_PART(vreg, enable_state);
-
-	if (pf >= 0 && pf < config->label_pin_func_len)
-		pf_label = config->label_pin_func[pf];
-
-	if (fm >= 0 && fm < config->label_force_mode_len)
-		fm_label = config->label_force_mode[fm];
-
-	if (pm >= 0 && pm < config->label_power_mode_len)
-		pm_label = config->label_power_mode[pm];
-
-	if (freq >= 0 && freq < ARRAY_SIZE(label_freq))
-		freq_label = label_freq[freq];
-
-	for (i = 0; i < config->label_pin_ctrl_len; i++)
-		if (pc & (1 << i))
-			pc_en[i] = config->label_pin_ctrl[i];
-
-	if (pc == RPM_VREG_PIN_CTRL_NONE)
-		pc_total = " none";
-
-	pos += scnprintf(buf + pos, buflen - pos, "%s%s: ",
-			 KERN_INFO, __func__);
-
-	pos += scnprintf(buf + pos, buflen - pos, "%s %-9s: s=%c",
-			(set == MSM_RPM_CTX_SET_0 ? "sending " : "buffered"),
-			vreg->rdesc.name,
-			(set == MSM_RPM_CTX_SET_0 ? 'A' : 'S'));
-
-	if (USES_PART(vreg, uV) && vreg->type != RPM_REGULATOR_TYPE_CORNER)
-		pos += scnprintf(buf + pos, buflen - pos, ", v=%7d uV", uV);
-	if (USES_PART(vreg, mV))
-		pos += scnprintf(buf + pos, buflen - pos, ", v=%4d mV", mV);
-	if (USES_PART(vreg, enable_state))
-		pos += scnprintf(buf + pos, buflen - pos, ", state=%s (%d)",
-				 (state == 1 ? "on" : "off"), state);
-	if (USES_PART(vreg, ip))
-		pos += scnprintf(buf + pos, buflen - pos,
-				 ", ip=%4d mA", GET_PART(vreg, ip));
-	if (USES_PART(vreg, fm))
-		pos += scnprintf(buf + pos, buflen - pos,
-				 ", fm=%s (%d)", fm_label, fm);
-	if (USES_PART(vreg, pc))
-		pos += scnprintf(buf + pos, buflen - pos,
-				 ", pc=%s%s%s%s%s (%X)", pc_en[0], pc_en[1],
-				 pc_en[2], pc_en[3], pc_total, pc);
-	if (USES_PART(vreg, pf))
-		pos += scnprintf(buf + pos, buflen - pos,
-				 ", pf=%s (%d)", pf_label, pf);
-	if (USES_PART(vreg, pd))
-		pos += scnprintf(buf + pos, buflen - pos,
-				 ", pd=%s (%d)", (pd == 1 ? "Y" : "N"), pd);
-	if (USES_PART(vreg, ia))
-		pos += scnprintf(buf + pos, buflen - pos,
-				 ", ia=%4d mA", GET_PART(vreg, ia));
-	if (USES_PART(vreg, freq)) {
-		if (vreg->type == RPM_REGULATOR_TYPE_NCP)
-			pos += scnprintf(buf + pos, buflen - pos,
-				       ", freq=%2d", freq);
-		else
-			pos += scnprintf(buf + pos, buflen - pos,
-				       ", freq=%s MHz (%2d)", freq_label, freq);
-	}
-	if (USES_PART(vreg, pm))
-		pos += scnprintf(buf + pos, buflen - pos,
-				 ", pm=%s (%d)", pm_label, pm);
-	if (USES_PART(vreg, freq_clk_src))
-		pos += scnprintf(buf + pos, buflen - pos,
-				 ", clk_src=%d", GET_PART(vreg, freq_clk_src));
-	if (USES_PART(vreg, comp_mode))
-		pos += scnprintf(buf + pos, buflen - pos,
-				 ", comp=%d", GET_PART(vreg, comp_mode));
-	if (USES_PART(vreg, hpm))
-		pos += scnprintf(buf + pos, buflen - pos,
-				 ", hpm=%d", GET_PART(vreg, hpm));
-	if (USES_PART(vreg, uV) && vreg->type == RPM_REGULATOR_TYPE_CORNER) {
-		if (uV >= 0 && uV < (ARRAY_SIZE(label_corner) - 1))
-			corner_label = label_corner[uV+1];
-		pos += scnprintf(buf + pos, buflen - pos, ", corner=%s (%d)",
-			corner_label, uV);
-	}
-
-	pos += scnprintf(buf + pos, buflen - pos, "; req[0]={%d, 0x%08X}",
-			 vreg->req[0].id, vreg->req[0].value);
-	if (vreg->part->request_len > 1)
-		pos += scnprintf(buf + pos, buflen - pos,
-				 ", req[1]={%d, 0x%08X}", vreg->req[1].id,
-				 vreg->req[1].value);
-
-	pos += scnprintf(buf + pos, buflen - pos, "\n");
-	printk(buf);
-}
+{ return; }
 
 static void rpm_regulator_vote(struct vreg *vreg, enum rpm_vreg_voter voter,
 			int set, int voter_uV, int aggregate_uV)

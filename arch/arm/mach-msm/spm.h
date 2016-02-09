@@ -101,7 +101,7 @@ enum {
 
 struct msm_spm_seq_entry {
 	uint32_t mode;
-	uint8_t *cmd;
+	const uint8_t *cmd;
 	bool  notify_rpm;
 };
 

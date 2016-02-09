@@ -35,7 +35,7 @@
 #include <net/ip6_fib.h>
 #include <net/ip6_route.h>
 
-#define RT6_DEBUG 2
+#define RT6_DEBUG 0
 
 #if RT6_DEBUG >= 3
 #define RT6_TRACE(x...) printk(KERN_DEBUG x)

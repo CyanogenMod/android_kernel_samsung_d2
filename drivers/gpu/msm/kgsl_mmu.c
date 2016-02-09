@@ -27,9 +27,11 @@
 #include "kgsl_sharedmem.h"
 #include "adreno.h"
 
+#ifdef KGSL_FORCE_MMU
+#define kgsl_mmu_type KGSL_FORCE_MMU
+#else
 static enum kgsl_mmutype kgsl_mmu_type;
-
-static void pagetable_remove_sysfs_objects(struct kgsl_pagetable *pagetable);
+#endif
 
 static int kgsl_cleanup_pt(struct kgsl_pagetable *pt)
 {
@@ -86,8 +88,6 @@ error_pt:
 
 static void _kgsl_destroy_pagetable(struct kgsl_pagetable *pagetable)
 {
-	pagetable_remove_sysfs_objects(pagetable);
-
 	kgsl_cleanup_pt(pagetable);
 
 	if (pagetable->kgsl_pool)
@@ -147,185 +147,6 @@ kgsl_get_pagetable(unsigned long name)
 	}
 
 	spin_unlock_irqrestore(&kgsl_driver.ptlock, flags);
-	return ret;
-}
-
-static struct kgsl_pagetable *
-_get_pt_from_kobj(struct kobject *kobj)
-{
-	unsigned int ptname;
-
-	if (!kobj)
-		return NULL;
-
-	if (kstrtou32(kobj->name, 0, &ptname))
-		return NULL;
-
-	return kgsl_get_pagetable(ptname);
-}
-
-static ssize_t
-sysfs_show_entries(struct kobject *kobj,
-		   struct kobj_attribute *attr,
-		   char *buf)
-{
-	struct kgsl_pagetable *pt;
-	int ret = 0;
-
-	pt = _get_pt_from_kobj(kobj);
-
-	if (pt)
-		ret += snprintf(buf, PAGE_SIZE, "%d\n", pt->stats.entries);
-
-	kgsl_put_pagetable(pt);
-	return ret;
-}
-
-static ssize_t
-sysfs_show_mapped(struct kobject *kobj,
-		  struct kobj_attribute *attr,
-		  char *buf)
-{
-	struct kgsl_pagetable *pt;
-	int ret = 0;
-
-	pt = _get_pt_from_kobj(kobj);
-
-	if (pt)
-		ret += snprintf(buf, PAGE_SIZE, "%d\n", pt->stats.mapped);
-
-	kgsl_put_pagetable(pt);
-	return ret;
-}
-
-static ssize_t
-sysfs_show_va_range(struct kobject *kobj,
-		    struct kobj_attribute *attr,
-		    char *buf)
-{
-	struct kgsl_pagetable *pt;
-	int ret = 0;
-
-	pt = _get_pt_from_kobj(kobj);
-
-	if (pt) {
-		ret += snprintf(buf, PAGE_SIZE, "0x%x\n",
-			kgsl_mmu_get_ptsize());
-	}
-
-	kgsl_put_pagetable(pt);
-	return ret;
-}
-
-static ssize_t
-sysfs_show_max_mapped(struct kobject *kobj,
-		      struct kobj_attribute *attr,
-		      char *buf)
-{
-	struct kgsl_pagetable *pt;
-	int ret = 0;
-
-	pt = _get_pt_from_kobj(kobj);
-
-	if (pt)
-		ret += snprintf(buf, PAGE_SIZE, "%d\n", pt->stats.max_mapped);
-
-	kgsl_put_pagetable(pt);
-	return ret;
-}
-
-static ssize_t
-sysfs_show_max_entries(struct kobject *kobj,
-		       struct kobj_attribute *attr,
-		       char *buf)
-{
-	struct kgsl_pagetable *pt;
-	int ret = 0;
-
-	pt = _get_pt_from_kobj(kobj);
-
-	if (pt)
-		ret += snprintf(buf, PAGE_SIZE, "%d\n", pt->stats.max_entries);
-
-	kgsl_put_pagetable(pt);
-	return ret;
-}
-
-static struct kobj_attribute attr_entries = {
-	.attr = { .name = "entries", .mode = 0444 },
-	.show = sysfs_show_entries,
-	.store = NULL,
-};
-
-static struct kobj_attribute attr_mapped = {
-	.attr = { .name = "mapped", .mode = 0444 },
-	.show = sysfs_show_mapped,
-	.store = NULL,
-};
-
-static struct kobj_attribute attr_va_range = {
-	.attr = { .name = "va_range", .mode = 0444 },
-	.show = sysfs_show_va_range,
-	.store = NULL,
-};
-
-static struct kobj_attribute attr_max_mapped = {
-	.attr = { .name = "max_mapped", .mode = 0444 },
-	.show = sysfs_show_max_mapped,
-	.store = NULL,
-};
-
-static struct kobj_attribute attr_max_entries = {
-	.attr = { .name = "max_entries", .mode = 0444 },
-	.show = sysfs_show_max_entries,
-	.store = NULL,
-};
-
-static struct attribute *pagetable_attrs[] = {
-	&attr_entries.attr,
-	&attr_mapped.attr,
-	&attr_va_range.attr,
-	&attr_max_mapped.attr,
-	&attr_max_entries.attr,
-	NULL,
-};
-
-static struct attribute_group pagetable_attr_group = {
-	.attrs = pagetable_attrs,
-};
-
-static void
-pagetable_remove_sysfs_objects(struct kgsl_pagetable *pagetable)
-{
-	if (pagetable->kobj)
-		sysfs_remove_group(pagetable->kobj,
-				   &pagetable_attr_group);
-
-	kobject_put(pagetable->kobj);
-}
-
-static int
-pagetable_add_sysfs_objects(struct kgsl_pagetable *pagetable)
-{
-	char ptname[16];
-	int ret = -ENOMEM;
-
-	snprintf(ptname, sizeof(ptname), "%d", pagetable->name);
-	pagetable->kobj = kobject_create_and_add(ptname,
-						 kgsl_driver.ptkobj);
-	if (pagetable->kobj == NULL)
-		goto err;
-
-	ret = sysfs_create_group(pagetable->kobj, &pagetable_attr_group);
-
-err:
-	if (ret) {
-		if (pagetable->kobj)
-			kobject_put(pagetable->kobj);
-
-		pagetable->kobj = NULL;
-	}
-
 	return ret;
 }
 
@@ -553,9 +374,6 @@ static struct kgsl_pagetable *kgsl_mmu_createpagetableobject(
 	list_add(&pagetable->list, &kgsl_driver.pagetable_list);
 	spin_unlock_irqrestore(&kgsl_driver.ptlock, flags);
 
-	/* Create the sysfs entries */
-	pagetable_add_sysfs_objects(pagetable);
-
 	return pagetable;
 
 err_mmu_create:
@@ -599,7 +417,9 @@ void kgsl_setstate(struct kgsl_mmu *mmu, unsigned int context_id,
 			uint32_t flags)
 {
 	struct kgsl_device *device = mmu->device;
+#if !CONFIG_AXXX_REV
 	struct adreno_device *adreno_dev = ADRENO_DEVICE(device);
+#endif
 
 	if (!(flags & (KGSL_MMUFLAGS_TLBFLUSH | KGSL_MMUFLAGS_PTUPDATE))
 		&& !adreno_is_a2xx(adreno_dev))
@@ -759,14 +579,6 @@ kgsl_mmu_map(struct kgsl_pagetable *pagetable,
 
 	if (ret)
 		goto done;
-
-	/* Keep track of the statistics for the sysfs files */
-
-	KGSL_STATS_ADD(1, pagetable->stats.entries,
-		       pagetable->stats.max_entries);
-
-	KGSL_STATS_ADD(size, pagetable->stats.mapped,
-		       pagetable->stats.max_mapped);
 
 	spin_unlock(&pagetable->lock);
 	memdesc->priv |= KGSL_MEMDESC_MAPPED;
@@ -958,6 +770,7 @@ void *kgsl_mmu_ptpool_init(int entries)
 }
 EXPORT_SYMBOL(kgsl_mmu_ptpool_init);
 
+#ifndef KGSL_FORCE_MMU
 int kgsl_mmu_enabled(void)
 {
 	if (KGSL_MMU_TYPE_NONE != kgsl_mmu_type)
@@ -992,6 +805,7 @@ void kgsl_mmu_set_mmutype(char *mmutype)
 		kgsl_mmu_type = KGSL_MMU_TYPE_NONE;
 }
 EXPORT_SYMBOL(kgsl_mmu_set_mmutype);
+#endif
 
 int kgsl_mmu_gpuaddr_in_range(unsigned int gpuaddr)
 {

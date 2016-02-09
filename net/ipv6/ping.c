@@ -58,23 +58,24 @@ static struct inet_protosw pingv6_protosw = {
 
 
 /* Compatibility glue so we can support IPv6 when it's compiled as a module */
-int dummy_ipv6_recv_error(struct sock *sk, struct msghdr *msg, int len, int *addr_len)
+static int dummy_ipv6_recv_error(struct sock *sk, struct msghdr *msg, int len,
+				int *addr_len)
 {
 	return -EAFNOSUPPORT;
 }
-int dummy_datagram_recv_ctl(struct sock *sk, struct msghdr *msg,
+static int dummy_datagram_recv_ctl(struct sock *sk, struct msghdr *msg,
 				 struct sk_buff *skb)
 {
 	return -EAFNOSUPPORT;
 }
-int dummy_icmpv6_err_convert(u8 type, u8 code, int *err)
+static int dummy_icmpv6_err_convert(u8 type, u8 code, int *err)
 {
 	return -EAFNOSUPPORT;
 }
-void dummy_ipv6_icmp_error(struct sock *sk, struct sk_buff *skb, int err,
-			    __be16 port, u32 info, u8 *payload) {}
-int dummy_ipv6_chk_addr(struct net *net, const struct in6_addr *addr,
-			struct net_device *dev, int strict)
+static void dummy_ipv6_icmp_error(struct sock *sk, struct sk_buff *skb, int err,
+				  __be16 port, u32 info, u8 *payload) {}
+static int dummy_ipv6_chk_addr(struct net *net, const struct in6_addr *addr,
+			       struct net_device *dev, int strict)
 {
 	return 0;
 }

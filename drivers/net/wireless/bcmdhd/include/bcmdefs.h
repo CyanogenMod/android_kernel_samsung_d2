@@ -35,24 +35,15 @@
 /* Use BCM_REFERENCE to suppress warnings about intentionally-unused function
  * arguments or local variables.
  */
-#define BCM_REFERENCE(data)	((void)(data))
+#define BCM_REFERENCE(data)	do { } while (0)
 
 /* Allow for suppressing unused variable warnings. */
-#ifdef __GNUC__
-#define UNUSED_VAR     __attribute__ ((unused))
-#else
 #define UNUSED_VAR
-#endif
 
 /* Compile-time assert can be used in place of ASSERT if the expression evaluates
  * to a constant at compile time.
  */
-#define STATIC_ASSERT(expr) { \
-	/* Make sure the expression is constant. */ \
-	typedef enum { _STATIC_ASSERT_NOT_CONSTANT = (expr) } _static_assert_e UNUSED_VAR; \
-	/* Make sure the expression is true. */ \
-	typedef char STATIC_ASSERT_FAIL[(expr) ? 1 : -1] UNUSED_VAR; \
-}
+#define STATIC_ASSERT(expr)	BUILD_BUG_ON(expr)
 
 /* Reclaiming text and data :
  * The following macros specify special linker sections that can be reclaimed

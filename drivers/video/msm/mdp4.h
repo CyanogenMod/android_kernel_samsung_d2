@@ -24,7 +24,6 @@ extern struct completion mdp_hist_comp;
 extern boolean mdp_is_in_isr;
 extern uint32 mdp_intr_mask;
 extern spinlock_t mdp_spin_lock;
-extern struct mdp4_statistic mdp4_stat;
 extern uint32 mdp4_extn_disp;
 extern char *mmss_cc_base;	/* mutimedia sub system clock control */
 extern spinlock_t dsi_clk_lock;
@@ -381,59 +380,6 @@ struct mdp4_overlay_pipe {
 	struct completion comp;
 	struct completion dmas_comp;
 	struct mdp4_iommu_pipe_info iommu;
-};
-
-struct mdp4_statistic {
-	ulong intr_tot;
-	ulong intr_dma_p;
-	ulong intr_dma_s;
-	ulong intr_dma_e;
-	ulong intr_overlay0;
-	ulong intr_overlay1;
-	ulong intr_overlay2;
-	ulong intr_vsync_p;	/* Primary interface */
-	ulong intr_underrun_p;	/* Primary interface */
-	ulong intr_vsync_e;	/* external interface */
-	ulong intr_underrun_e;	/* external interface */
-	ulong intr_histogram;
-	ulong intr_rdptr;
-	ulong dsi_mdp_start;
-	ulong dsi_clk_on;
-	ulong dsi_clk_off;
-	ulong intr_dsi;
-	ulong intr_dsi_mdp;
-	ulong intr_dsi_cmd;
-	ulong intr_dsi_err;
-	ulong kickoff_ov0;
-	ulong kickoff_ov1;
-	ulong kickoff_ov2;
-	ulong kickoff_dmap;
-	ulong kickoff_dmae;
-	ulong kickoff_dmas;
-	ulong blt_dsi_cmd;	/* blt */
-	ulong blt_dsi_video;	/* blt */
-	ulong blt_lcdc;	/* blt */
-	ulong blt_dtv;	/* blt */
-	ulong blt_mddi;	/* blt */
-	ulong overlay_set[MDP4_MIXER_MAX];
-	ulong overlay_unset[MDP4_MIXER_MAX];
-	ulong overlay_play[MDP4_MIXER_MAX];
-	ulong overlay_commit[MDP4_MIXER_MAX];
-	ulong pipe[OVERLAY_PIPE_MAX];
-	ulong wait4vsync0;
-	ulong wait4vsync1;
-	ulong iommu_map;
-	ulong iommu_unmap;
-	ulong iommu_drop;
-	ulong dsi_clkoff;
-	ulong err_mixer;
-	ulong err_zorder;
-	ulong err_size;
-	ulong err_scale;
-	ulong err_format;
-	ulong err_stage;
-	ulong err_play;
-	ulong err_underflow;
 };
 
 struct vsync_update {

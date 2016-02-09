@@ -263,6 +263,44 @@ config NWFLASH
 
 source "drivers/char/hw_random/Kconfig"
 
+config ISAAC
+	tristate "ISAAC PRNG device"
+	---help---
+	  ISAAC was proposed by Bob Jenkins, and placed in the public domain.
+	  It is a fast (hundreds of MB/s) and presumed secure (passes
+	  dieharder) pseudo-random number generator.  This option adds a device
+	  alongside /dev/random, exposing an ISAAC generator.
+
+config ISAAC_SHIFT
+	int "ISAAC memory size"
+	range 4 15
+	default 8
+	depends on ISAAC
+	---help---
+	  The size of ISAAC's memory structures can be customized.  Lower
+	  values will result in more predictable output.
+
+	  Each structure will occupy roughly 8*(2^n) bytes; the default (8)
+	  will use 2 KB per structure.
+
+config ISAAC_PLUS
+	bool "Use ISAAC+ instead"
+	depends on ISAAC
+	---help---
+	  ISAAC+ was proposed by Jean-Philippe Aumasson.  It makes a number of
+	  small changes to ISAAC's generation algorithm to eliminate output
+	  biases, at the expense of marginally increased complexity.
+
+config ISAAC_RANDOM
+	bool "Use ISAAC for insecure random generation"
+	depends on ISAAC=y
+	---help---
+	  Use ISAAC for a number of insecure kernel random functions, including
+	  get_random_int, get_random_bytes, and /dev/urandom.
+
+	  While no feasible attacks on ISAAC are known, its security has not
+	  been mathematically proven.  Therefore, /dev/random is left intact.
+
 config NVRAM
 	tristate "/dev/nvram support"
 	depends on ATARI || X86 || (ARM && RTC_DRV_CMOS) || GENERIC_NVRAM

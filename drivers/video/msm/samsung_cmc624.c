@@ -15,9 +15,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301, USA.
 */
-#ifndef DEBUG
-#define DEBUG			/* uncomment if you want debugging output */
-#endif
 #include <linux/delay.h>
 #include <mach/gpio-v1.h>
 #include "msm_fb.h"

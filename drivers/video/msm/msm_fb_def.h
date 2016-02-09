@@ -82,7 +82,6 @@ typedef unsigned int boolean;
 #define FALSE 0
 #endif
 
-#define MSM_FB_ENABLE_DBGFS
 #define FEATURE_MDDI
 
 #if defined(CONFIG_FB_MSM_DEFAULT_DEPTH_RGB565)
@@ -147,7 +146,11 @@ typedef unsigned int boolean;
 #define EBI2_SECD_LCD_SEL 0x100
 #endif
 
+#ifdef MSM_FB_ENABLE_DEBUGFS
 extern u32 msm_fb_msg_level;
+#else
+#define msm_fb_msg_level (4)
+#endif
 
 /*
  * Message printing priorities:

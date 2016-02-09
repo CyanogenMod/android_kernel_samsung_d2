@@ -55,7 +55,11 @@
 #endif
 
 extern int32 mddi_client_type;
+#ifdef MSM_FB_ENABLE_DBGFS
 extern u32 mddi_msg_level;
+#else
+#define mddi_msg_level (4)
+#endif
 
 /* No longer need to write to clear these registers */
 #define xxxx_mddi_host_reg_outm(reg, mask, val)  \

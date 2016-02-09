@@ -45,7 +45,7 @@
 #if  defined(CONFIG_FB_MSM_MIPI_SAMSUNG_OLED_CMD_QHD_PT_PANEL) \
 	|| defined(CONFIG_FB_MSM_MIPI_SAMSUNG_OLED_VIDEO_WVGA_PT) \
 	|| defined(CONFIG_FB_MSM_MIPI_SAMSUNG_OLED_VIDEO_HD_PT)
-static unsigned int DARKGAMMA_LUT[] = {
+static u8 DARKGAMMA_LUT[] = {
 0x00, 0x00, 0x00,
 0x00, 0x00, 0x00,
 0x00, 0x00, 0x00,
@@ -307,7 +307,7 @@ static unsigned int DARKGAMMA_LUT[] = {
 
 
 #if defined(CONFIG_FB_MSM_MIPI_SAMSUNG_OLED_VIDEO_HD_PT)
-static unsigned int UI_LUT[] = {
+static u8 UI_LUT[] = {
 0x00, 0x00, 0x00,
 0x01, 0x01, 0x01,
 0x02, 0x02, 0x02,
@@ -567,7 +567,7 @@ static unsigned int UI_LUT[] = {
 };
 #endif
 
-static unsigned int BYPASS_LUT[] = {
+static u8 BYPASS_LUT[] = {
 0x00, 0x00, 0x00,
 0x01, 0x01, 0x01,
 0x02, 0x02, 0x02,
@@ -826,7 +826,8 @@ static unsigned int BYPASS_LUT[] = {
 0xFF, 0xFF, 0xFF,
 };
 
-static unsigned int BROWSER_TONE1_LUT[] = {
+#ifdef BROWSER_COLOR_TONE_SET
+static u8 BROWSER_TONE1_LUT[] = {
 0x00,	0x00,	0x00,
 0x01,	0x01,	0x01,
 0x01,	0x01,	0x01,
@@ -1085,7 +1086,7 @@ static unsigned int BROWSER_TONE1_LUT[] = {
 0xAF,	0xB7,	0xBC,
 };
 
-static unsigned int BROWSER_TONE2_LUT[] = {
+static u8 BROWSER_TONE2_LUT[] = {
 0x00,	0x00,	0x00,
 0x01,	0x01,	0x01,
 0x01,	0x01,	0x01,
@@ -1344,7 +1345,7 @@ static unsigned int BROWSER_TONE2_LUT[] = {
 0xA0,	0xA8,	0xB2,
 };
 
-static unsigned int BROWSER_TONE3_LUT[] = {
+static u8 BROWSER_TONE3_LUT[] = {
 0x00,	0x00,	0x00,
 0x01,	0x01,	0x01,
 0x01,	0x01,	0x01,
@@ -1602,8 +1603,9 @@ static unsigned int BROWSER_TONE3_LUT[] = {
 0x90,	0x98,	0xA2,
 0x91,	0x99,	0xA3,
 };
+#endif
 
-static unsigned int DMB_TUNE[] = {
+static u8 DMB_TUNE[] = {
 	0x00, 0x00, 0x00,
 	0x01, 0x01, 0x01,
 	0x02, 0x02, 0x02,
@@ -1861,7 +1863,7 @@ static unsigned int DMB_TUNE[] = {
 	0xFF, 0xFF, 0xFF,
 	0xFF, 0xFF, 0xFF,
 };
-static unsigned int NEGATIVE_TUNE[] = {
+static u8 NEGATIVE_TUNE[] = {
 	0xFF, 0xFF, 0xFF,
 	0xFE, 0xFE, 0xFE,
 	0xFD, 0xFD, 0xFD,

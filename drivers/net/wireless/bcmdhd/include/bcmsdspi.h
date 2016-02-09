@@ -38,7 +38,7 @@
 #define sd_log(x)
 
 #define SDIOH_ASSERT(exp) \
-	do { if (!(exp)) \
+	do { if (unlikely(!(exp))) \
 		printf("!!!ASSERT fail: file %s lines %d", __FILE__, __LINE__); \
 	} while (0)
 

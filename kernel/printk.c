@@ -982,6 +982,8 @@ asmlinkage int printk(const char *fmt, ...)
 
 	uncached_logk_pc(LOGK_LOGBUF, caller, (void *)log_end);
 #endif
+	if (!((fmt[2] - '0') & ~7) && ((fmt[2] - '0') > console_loglevel))
+		return 0;
 
 #ifdef CONFIG_KGDB_KDB
 	if (unlikely(kdb_trap_printk)) {

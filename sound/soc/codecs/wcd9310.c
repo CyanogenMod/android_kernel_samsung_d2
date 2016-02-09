@@ -6423,7 +6423,7 @@ void tabla_mbhc_cal(struct snd_soc_codec *codec)
 void *tabla_mbhc_cal_btn_det_mp(const struct tabla_mbhc_btn_detect_cfg* btn_det,
 				const enum tabla_mbhc_btn_det_mem mem)
 {
-	void *ret = &btn_det->_v_btn_low;
+	void *ret = (void *)&btn_det->_v_btn_low;
 
 	switch (mem) {
 	case TABLA_BTN_DET_GAIN:
@@ -8957,6 +8957,11 @@ static const struct file_operations poke_reg_fops = {
 	.open = codec_debug_open,
 	.write = poke_reg_write_file,
 };
+#endif
+
+#ifdef CONFIG_SOUND_CONTROL_HAX_GPL
+struct snd_kcontrol_new *gpl_faux_snd_controls_ptr =
+		(struct snd_kcontrol_new *)tabla_snd_controls;
 #endif
 
 static int tabla_codec_probe(struct snd_soc_codec *codec)

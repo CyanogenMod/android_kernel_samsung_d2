@@ -36,7 +36,7 @@
 #include "vidc_init_internal.h"
 #include "vcd_res_tracker_api.h"
 
-#if DEBUG
+#ifdef DEBUG
 #define DBG(x...) printk(KERN_DEBUG x)
 #else
 #define DBG(x...)

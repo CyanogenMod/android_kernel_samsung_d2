@@ -357,6 +357,9 @@ config AVERAGE
 
 	  If unsure, say N.
 
+config WMAVG
+	bool
+
 config CLZ_TAB
 	bool
 

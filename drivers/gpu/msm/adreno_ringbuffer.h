@@ -60,6 +60,7 @@ struct adreno_ringbuffer {
 };
 
 
+#ifdef CONFIG_MSM_KGSL_CFF_DUMP
 #define GSL_RB_WRITE(ring, gpuaddr, data) \
 	do { \
 		*ring = data; \
@@ -68,6 +69,10 @@ struct adreno_ringbuffer {
 		ring++; \
 		gpuaddr += sizeof(uint); \
 	} while (0)
+#else
+#define GSL_RB_WRITE(ring, gpuaddr, data) \
+	do { *ring++ = data; } while (0)
+#endif
 
 /* enable timestamp (...scratch0) memory shadowing */
 #define GSL_RB_MEMPTRS_SCRATCH_MASK 0x1

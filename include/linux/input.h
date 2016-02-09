@@ -31,6 +31,15 @@ struct input_event {
 };
 
 /*
+ * Structure for passing lists of events
+ */
+struct input_event_list {
+	__u16 type;
+	__u16 code;
+	__s32 value;
+};
+
+/*
  * Protocol version.
  */
 
@@ -1520,6 +1529,7 @@ void input_close_device(struct input_handle *);
 int input_flush_device(struct input_handle *handle, struct file *file);
 
 void input_event(struct input_dev *dev, unsigned int type, unsigned int code, int value);
+void input_event_list(struct input_dev *dev, struct input_event_list *list);
 void input_inject_event(struct input_handle *handle, unsigned int type, unsigned int code, int value);
 
 static inline void input_report_key(struct input_dev *dev, unsigned int code, int value)

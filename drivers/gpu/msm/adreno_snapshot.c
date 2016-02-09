@@ -463,6 +463,7 @@ static int ib_parse_type3(struct kgsl_device *device, unsigned int *ptr,
  * needlessly caching buffers that won't be used during a draw call
  */
 
+#if __adreno_is_a3xx
 static void ib_parse_type0(struct kgsl_device *device, unsigned int *ptr,
 	unsigned int ptbase)
 {
@@ -541,6 +542,10 @@ static void ib_parse_type0(struct kgsl_device *device, unsigned int *ptr,
 		}
 	}
 }
+#endif
+
+static inline int parse_ib(struct kgsl_device *device, unsigned int ptbase,
+		unsigned int gpuaddr, unsigned int dwords);
 
 static inline int parse_ib(struct kgsl_device *device, unsigned int ptbase,
 		unsigned int gpuaddr, unsigned int dwords);
@@ -601,8 +606,10 @@ static int ib_add_gpu_object(struct kgsl_device *device, unsigned int ptbase,
 				if (ret < 0)
 					goto done;
 			}
+#if __adreno_is_a3xx
 		} else if (pkt_is_type0(src[i])) {
 			ib_parse_type0(device, &src[i], ptbase);
+#endif
 		}
 
 		i += pktsize;

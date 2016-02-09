@@ -15,8 +15,9 @@
 #include <linux/sched.h>
 #include <mach/socinfo.h>
 
-#include "kgsl.h"
 #include "adreno.h"
+#if __adreno_is_a3xx
+#include "kgsl.h"
 #include "kgsl_sharedmem.h"
 #include "kgsl_cffdump.h"
 #include "a3xx_reg.h"
@@ -2958,8 +2959,6 @@ static irqreturn_t a3xx_irq_handler(struct adreno_device *adreno_dev)
 		tmp >>= 1;
 	}
 
-	trace_kgsl_a3xx_irq_status(device, status);
-
 	if (status)
 		adreno_regwrite(&adreno_dev->dev, A3XX_RBBM_INT_CLEAR_CMD,
 			status);
@@ -3407,3 +3406,4 @@ struct adreno_gpudev adreno_a3xx_gpudev = {
 	.perfcounter_enable = a3xx_perfcounter_enable,
 	.perfcounter_read = a3xx_perfcounter_read,
 };
+#endif

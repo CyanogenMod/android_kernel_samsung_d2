@@ -141,7 +141,6 @@ void mdp4_dsi_video_pipe_queue(int cndx, struct mdp4_overlay_pipe *pipe)
 	*pp = *pipe;	/* clone it */
 	vp->update_cnt++;
 	mutex_unlock(&vctrl->update_lock);
-	mdp4_stat.overlay_play[pipe->mixer_num]++;
 }
 
 static void mdp4_dsi_video_pipe_clean(struct vsync_update *vp)
@@ -274,12 +273,9 @@ int mdp4_dsi_video_pipe_commit(int cndx, int wait, u32 *release_busy)
 		mb();
 		vctrl->ov_koff++;
 		/* kickoff overlay engine */
-		mdp4_stat.kickoff_ov0++;
 		outpdw(MDP_BASE + 0x0004, 0);
 	}
 	spin_unlock_irqrestore(&vctrl->spin_lock, flags);
-
-	mdp4_stat.overlay_commit[pipe->mixer_num]++;
 
 	if (wait) {
 		if (release_busy) {
@@ -366,7 +362,6 @@ void mdp4_dsi_video_wait4vsync(int cndx)
 		pr_err("%s timeout ret=%d", __func__, ret);
 
 	mdp4_video_vsync_irq_ctrl(cndx, 0);
-	mdp4_stat.wait4vsync0++;
 }
 
 static void mdp4_dsi_video_wait4dmap(int cndx)
@@ -1097,7 +1092,6 @@ static void mdp4_dsi_video_do_blt(struct msm_fb_data_type *mfd, int enable)
 		vctrl->ov_koff = 0;
 		vctrl->ov_done = 0;
 		vctrl->blt_free = 0;
-		mdp4_stat.blt_dsi_video++;
 		vctrl->blt_change++;
 	} else if (enable == 0 && pipe->ov_blt_addr) {
 		pipe->ov_blt_addr = 0;
@@ -1135,7 +1129,6 @@ static void mdp4_dsi_video_do_blt(struct msm_fb_data_type *mfd, int enable)
 			vsync_irq_enable(INTR_OVERLAY0_DONE,
 						MDP_OVERLAY0_TERM);
 			/* kickoff overlay0 engine */
-			mdp4_stat.kickoff_ov0++;
 			vctrl->ov_koff++;	/* make up for prefill */
 			outpdw(MDP_BASE + 0x0004, 0);
 		}

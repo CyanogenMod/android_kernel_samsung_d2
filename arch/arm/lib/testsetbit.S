@@ -12,4 +12,4 @@
 #include "bitops.h"
                 .text
 
-testop	_test_and_set_bit, orreq, streq
+testop	_test_and_set_bit, orr, eq

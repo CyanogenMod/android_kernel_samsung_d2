@@ -580,8 +580,6 @@ INT32 ffsWriteFile(struct inode *inode, FILE_ID_T *fid, void *buffer, UINT64 cou
 			num_alloced = p_fs->fs_func->alloc_cluster(sb, num_alloc, &new_clu);
 			if (num_alloced == 0)
 				break;
-			else if (num_alloced < 0)
-				return FFS_MEDIAERR;
 
 			if (last_clu == CLUSTER_32(~0)) {
 				if (new_clu.flags == 0x01)
@@ -1317,9 +1315,7 @@ INT32 ffsMapCluster(struct inode *inode, INT32 clu_offset, UINT32 *clu)
 		new_clu.flags = fid->flags;
 
 		num_alloced = p_fs->fs_func->alloc_cluster(sb, 1, &new_clu);
-		if (num_alloced < 0)
-			return FFS_MEDIAERR;
-		else if (num_alloced == 0)
+		if (num_alloced < 1)
 			return FFS_FULL;
 
 		if (last_clu == CLUSTER_32(~0)) {
@@ -1803,19 +1799,16 @@ INT32 fat_alloc_cluster(struct super_block *sb, INT32 num_alloc, CHAIN_T *p_chai
 
 	for (i = 2; i < p_fs->num_clusters; i++) {
 		if (FAT_read(sb, new_clu, &read_clu) != 0)
-			return -1;
+			return 0;
 
 		if (read_clu == CLUSTER_32(0)) {
-			if(FAT_write(sb, new_clu, CLUSTER_32(~0)) < 0)
-				return -1;
+			FAT_write(sb, new_clu, CLUSTER_32(~0));
 			num_clusters++;
 
 			if (p_chain->dir == CLUSTER_32(~0))
 				p_chain->dir = new_clu;
-			else {
-				if(FAT_write(sb, last_clu, new_clu) < 0)
-					return -1;
-			}
+			else
+				FAT_write(sb, last_clu, new_clu);
 
 			last_clu = new_clu;
 
@@ -1867,22 +1860,18 @@ INT32 exfat_alloc_cluster(struct super_block *sb, INT32 num_alloc, CHAIN_T *p_ch
 		}
 
 		if (set_alloc_bitmap(sb, new_clu-2) != FFS_SUCCESS)
-			return -1;
+			return 0;
 
 		num_clusters++;
 
-		if (p_chain->flags == 0x01) {
-			if(FAT_write(sb, new_clu, CLUSTER_32(~0)) < 0)
-				return -1;
-		}
+		if (p_chain->flags == 0x01)
+			FAT_write(sb, new_clu, CLUSTER_32(~0));
 
 		if (p_chain->dir == CLUSTER_32(~0)) {
 			p_chain->dir = new_clu;
 		} else {
-			if (p_chain->flags == 0x01) {
-				if(FAT_write(sb, last_clu, new_clu) < 0)
-					return -1;
-			}
+			if (p_chain->flags == 0x01)
+				FAT_write(sb, last_clu, new_clu);
 		}
 		last_clu = new_clu;
 
@@ -1945,8 +1934,7 @@ void fat_free_cluster(struct super_block *sb, CHAIN_T *p_chain, INT32 do_relse)
 		if (FAT_read(sb, clu, &clu) == -1)
 			break;
 
-		if (FAT_write(sb, prev, CLUSTER_32(0)) < 0)
-			break;
+		FAT_write(sb, prev, CLUSTER_32(0));
 		num_clusters++;
 
 	} while (clu != CLUSTER_32(~0));
@@ -2109,8 +2097,7 @@ void exfat_chain_cont_cluster(struct super_block *sb, UINT32 chain, INT32 len)
 		return;
 
 	while (len > 1) {
-		if (FAT_write(sb, chain, chain+1) < 0)
-			break;
+		FAT_write(sb, chain, chain+1);
 		chain++;
 		len--;
 	}
@@ -3591,8 +3578,7 @@ INT32 find_empty_entry(struct inode *inode, CHAIN_T *p_dir, INT32 num_entries)
 			p_fs->hint_uentry.clu.flags = 0x01;
 		}
 		if (clu.flags == 0x01)
-			if(FAT_write(sb, last_clu, clu.dir) < 0)
-				return -1;
+			FAT_write(sb, last_clu, clu.dir);
 
 		if (p_fs->hint_uentry.entry == -1) {
 			p_fs->hint_uentry.dir = p_dir->dir;
@@ -4631,9 +4617,7 @@ INT32 create_dir(struct inode *inode, CHAIN_T *p_dir, UNI_NAME_T *p_uniname, FIL
 	clu.flags = (p_fs->vol_type == EXFAT) ? 0x03 : 0x01;
 
 	ret = p_fs->fs_func->alloc_cluster(sb, 1, &clu);
-	if (ret < 0)
-		return FFS_MEDIAERR;
-	else if(ret == 0)
+	if (ret < 1)
 		return FFS_FULL;
 
 	ret = clear_cluster(sb, clu.dir);

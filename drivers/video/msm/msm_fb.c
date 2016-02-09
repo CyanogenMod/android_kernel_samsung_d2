@@ -33,6 +33,8 @@
 #include <linux/uaccess.h>
 #include <mach/iommu_domains.h>
 
+#define CONFIG_DEBUG_FS
+
 #include <linux/workqueue.h>
 #include <linux/string.h>
 #include <linux/version.h>
@@ -93,12 +95,14 @@ static u32 msm_fb_pseudo_palette[16] = {
 
 static struct ion_client *iclient;
 
+#ifdef MSM_FB_ENABLE_DBGFS
 u32 msm_fb_debug_enabled;
 /* Setting msm_fb_msg_level to 8 prints out ALL messages */
 u32 msm_fb_msg_level = 7;
 
 /* Setting mddi_msg_level to 8 prints out ALL messages */
 u32 mddi_msg_level = 5;
+#endif
 
 extern int32 mdp_block_power_cnt[MDP_MAX_BLOCK];
 extern unsigned long mdp_timer_duration;
@@ -126,9 +130,6 @@ static int msm_fb_commit_thread(void *data);
 static void msm_fb_scale_bl(__u32 bl_max, __u32 *bl_lvl);
 static int msm_fb_pan_idle(struct msm_fb_data_type *mfd);
 
-#ifdef MSM_FB_ENABLE_DBGFS
-
-#define MSM_FB_MAX_DBGFS 1024
 #define MAX_BACKLIGHT_BRIGHTNESS 255
 
 #define WAIT_FENCE_FIRST_TIMEOUT (3 * MSEC_PER_SEC)
@@ -138,11 +139,6 @@ static int msm_fb_pan_idle(struct msm_fb_data_type *mfd);
         WAIT_FENCE_FINAL_TIMEOUT) * MDP_MAX_FENCE_FD
 #define MAX_TIMELINE_NAME_LEN 16
 
-int msm_fb_debugfs_file_index;
-struct dentry *msm_fb_debugfs_root;
-struct dentry *msm_fb_debugfs_file[MSM_FB_MAX_DBGFS];
-static int bl_scale, bl_min_lvl;
-
 DEFINE_MUTEX(msm_fb_notify_update_sem);
 void msmfb_no_update_notify_timer_cb(unsigned long data)
 {
@@ -151,6 +147,13 @@ void msmfb_no_update_notify_timer_cb(unsigned long data)
 		pr_err("%s mfd NULL\n", __func__);
 	complete(&mfd->msmfb_no_update_notify);
 }
+
+static int bl_scale, bl_min_lvl;
+
+#define MSM_FB_MAX_DBGFS 1024
+int msm_fb_debugfs_file_index;
+struct dentry *msm_fb_debugfs_root;
+struct dentry *msm_fb_debugfs_file[MSM_FB_MAX_DBGFS];
 
 struct dentry *msm_fb_get_debugfs_root(void)
 {
@@ -169,7 +172,6 @@ void msm_fb_debugfs_file_create(struct dentry *root, const char *name,
 	msm_fb_debugfs_file[msm_fb_debugfs_file_index++] =
 	    debugfs_create_u32(name, S_IRUGO | S_IWUSR, root, var);
 }
-#endif
 
 int msm_fb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 {
@@ -623,10 +625,8 @@ static int msm_fb_remove(struct platform_device *pdev)
 	}
 #endif
 
-#ifdef MSM_FB_ENABLE_DBGFS
 	if (mfd->sub_dir)
 		debugfs_remove(mfd->sub_dir);
-#endif
 
 	return 0;
 }
@@ -1239,7 +1239,7 @@ static int msm_fb_blank(int blank_mode, struct fb_info *info)
 			wait for the system to resume */
 			while (mfd->suspend.op_suspend) {
 				pr_debug("waiting for system to resume\n");
-				msleep(20);
+				schedule_timeout_uninterruptible(1);
 			}
 		} else if (blank_mode == FB_BLANK_VSYNC_SUSPEND) {
 			mfd->suspend.panel_power_state = MDP_PANEL_POWER_DOZE;
@@ -1733,9 +1733,9 @@ static int msm_fb_register(struct msm_fb_data_type *mfd)
 	     mfd->index, fbi->var.xres, fbi->var.yres, fbi->fix.smem_len);
 
 #ifdef CONFIG_FB_MSM_LOGO
-	/* Flip buffer */
-	if (!load_565rle_image(INIT_IMAGE_FILE, bf_supported))
-		;
+	if (hdmi_prim_display ||
+	    (mfd->panel_info.type != DTV_PANEL))
+		load_565rle_image(INIT_IMAGE_FILE, bf_supported);
 #endif
 	ret = 0;
 
@@ -1750,7 +1750,6 @@ static int msm_fb_register(struct msm_fb_data_type *mfd)
 	}
 #endif
 
-#ifdef MSM_FB_ENABLE_DBGFS
 	{
 		struct dentry *root;
 		struct dentry *sub_dir;
@@ -1875,7 +1874,6 @@ static int msm_fb_register(struct msm_fb_data_type *mfd)
 			}
 		}
 	}
-#endif /* MSM_FB_ENABLE_DBGFS */
 
 	return ret;
 }
@@ -2231,11 +2229,14 @@ static int msm_fb_pan_display_sub(struct fb_var_screeninfo *var,
 	}
 	complete(&mfd->msmfb_update_notify);
 	mutex_lock(&msm_fb_notify_update_sem);
+	/*
 	if (mfd->msmfb_no_update_notify_timer.function)
 		del_timer(&mfd->msmfb_no_update_notify_timer);
 
 	mfd->msmfb_no_update_notify_timer.expires = jiffies + (2 * HZ);
 	add_timer(&mfd->msmfb_no_update_notify_timer);
+	*/
+	mod_timer(&mfd->msmfb_no_update_notify_timer, 2 * HZ);
 	mutex_unlock(&msm_fb_notify_update_sem);
 
 	down(&msm_fb_pan_sem);
@@ -4322,6 +4323,7 @@ static int msm_fb_ioctl(struct fb_info *info, unsigned int cmd,
 		if (ret == 1)
 			ret = copy_to_user(argp, &mdp_pp, sizeof(mdp_pp));
 		break;
+
 	case MSMFB_BUFFER_SYNC:
 		ret = copy_from_user(&buf_sync, argp, sizeof(buf_sync));
 		if (ret)

@@ -16,7 +16,6 @@ struct max17040_platform_data {
 	int (*charger_enable)(void);
 	int (*low_batt_cb)(void);
 	void (*hw_init)(void);
-	int (*check_batt_type)(void);
 	u16 rcomp_value;
 };
 

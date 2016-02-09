@@ -696,7 +696,9 @@ static int dhd_pm_callback(struct notifier_block *nfb, unsigned long action, voi
 {
 	int ret = NOTIFY_DONE;
 	bool suspend = FALSE;
+#if defined(SUPPORT_P2P_GO_PS) && defined(PROP_TXSTATUS)
 	dhd_info_t *dhdinfo = (dhd_info_t*)container_of(nfb, struct dhd_info, pm_notifier);
+#endif
 
 	BCM_REFERENCE(dhdinfo);
 	switch (action) {

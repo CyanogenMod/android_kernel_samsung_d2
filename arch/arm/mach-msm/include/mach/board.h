@@ -333,7 +333,7 @@ struct msm_camera_board_info {
 	uint8_t num_i2c_board_info;
 };
 
-int msm_get_cam_resources(struct msm_camera_sensor_info *);
+void __init msm_get_cam_resources(struct msm_camera_sensor_info *);
 
 struct clk_lookup;
 

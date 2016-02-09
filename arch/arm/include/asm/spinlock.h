@@ -7,7 +7,9 @@
 
 #include <asm/processor.h>
 
+#ifdef CONFIG_MSM_KRAIT_WFE_FIXUP
 extern int msm_krait_need_wfe_fixup;
+#endif
 
 /*
  * sev and wfe are ARMv6K extensions.  Uniprocessor ARMv6 may not have the K
@@ -65,17 +67,20 @@ extern int msm_krait_need_wfe_fixup;
 
 static inline void dsb_sev(void)
 {
-#if __LINUX_ARM_ARCH__ >= 7
+	dsb();
+	sev();
+}
+
+static inline void wfe_safe(void)
+{
+#ifdef CONFIG_MSM_KRAIT_WFE_FIXUP
+	unsigned long tmp, fixup = msm_krait_need_wfe_fixup;
 	__asm__ __volatile__ (
-		"dsb\n"
-		SEV
-	);
+		WFE_SAFE("%0", "%1")
+		: "+r" (fixup), "=&r" (tmp)
+		: : "memory");
 #else
-	__asm__ __volatile__ (
-		"mcr p15, 0, %0, c7, c10, 4\n"
-		SEV
-		: : "r" (0)
-	);
+	wfe();
 #endif
 }
 
@@ -173,54 +178,62 @@ static inline void arch_spin_unlock(arch_spinlock_t *lock)
 #define TICKET_BITS	16
 #define	TICKET_MASK	0xFFFF
 
+/* In order to combine reads while allowing exclusive stores to the ticket
+ * portion of the lock, the ticket must reside in the lowest bytes of memory,
+ * regardless of endianness.
+ */
+#ifdef __LITTLE_ENDIAN
+#define LOCK_TICKET(n)	(n & 0xFFFF)
+#define LOCK_SERVING(n) (n >> 16)
+#define BE(code)
+#else
+#define LOCK_TICKET(n) (n >> 16)
+#define LOCK_SERVING(n)	(n & 0xFFFF)
+#define BE(code)	code
+#endif
+
 #define arch_spin_lock_flags(lock, flags) arch_spin_lock(lock)
 
 static inline void arch_spin_lock(arch_spinlock_t *lock)
 {
-	unsigned long tmp, ticket, next_ticket;
-	unsigned long fixup = msm_krait_need_wfe_fixup;
-
-	/* Grab the next ticket and wait for it to be "served" */
+	register volatile unsigned int *lockp asm ("r0") = &lock->lock;
 	__asm__ __volatile__(
-"1:	ldrex	%[ticket], [%[lockaddr]]\n"
-"	uadd16	%[next_ticket], %[ticket], %[val1]\n"
-"	strex	%[tmp], %[next_ticket], [%[lockaddr]]\n"
-"	teq	%[tmp], #0\n"
+"1:	ldrex	r1, [r0]\n"
+BE("	ror	r1, r1, #16\n")
+"	add	r1, r1, #1\n"
+"	strexh	r2, r1, [r0]\n"
+"	sub	r1, r1, #1\n"
+"	teq	r2, #0\n"
 "	bne	1b\n"
-"	uxth	%[ticket], %[ticket]\n"
-"2:\n"
-#ifdef CONFIG_CPU_32v6K
-"	beq	3f\n"
-	WFE_SAFE("%[fixup]", "%[tmp]")
-"3:\n"
-#endif
-"	ldr	%[tmp], [%[lockaddr]]\n"
-"	cmp	%[ticket], %[tmp], lsr #16\n"
-"	bne	2b"
-	: [ticket]"=&r" (ticket), [tmp]"=&r" (tmp),
-	  [next_ticket]"=&r" (next_ticket), [fixup]"+r" (fixup)
-	: [lockaddr]"r" (&lock->lock), [val1]"r" (1)
-	: "cc");
+
+"	teq	r1, r1, ror #16\n"
+"	mov	r2, lr\n"
+"	blne	__arch_spin_lock_slowpath\n"
+	:
+	: "r" (lockp)
+	: "r1", "r2", "cc");
+
 	smp_mb();
 }
 
+static inline int arch_spin_is_locked(arch_spinlock_t *lock);
 static inline int arch_spin_trylock(arch_spinlock_t *lock)
 {
-	unsigned long tmp, ticket, next_ticket;
+	unsigned long tmp, ticket;
 
 	/* Grab lock if now_serving == next_ticket and access is exclusive */
 	__asm__ __volatile__(
 "	ldrex	%[ticket], [%[lockaddr]]\n"
-"	ror	%[tmp], %[ticket], #16\n"
-"	eors	%[tmp], %[tmp], %[ticket]\n"
+"	eors	%[tmp], %[ticket], %[ticket], ror #16\n"
+BE("	lsr	%[ticket], %[ticket], #16\n")
+"	add	%[ticket], %[ticket], #1\n"
 "	bne	1f\n"
-"	uadd16	%[next_ticket], %[ticket], %[val1]\n"
-"	strex	%[tmp], %[next_ticket], [%[lockaddr]]\n"
-"1:"
-	: [ticket]"=&r" (ticket), [tmp]"=&r" (tmp),
-	  [next_ticket]"=&r" (next_ticket)
-	: [lockaddr]"r" (&lock->lock), [val1]"r" (1)
+"	strexh	%[tmp], %[ticket], [%[lockaddr]]\n"
+"1:\n"
+	: [ticket]"=&r" (ticket), [tmp]"=&r" (tmp)
+	: [lockaddr]"r" (&lock->lock)
 	: "cc");
+
 	if (!tmp)
 		smp_mb();
 	return !tmp;
@@ -228,60 +241,36 @@ static inline int arch_spin_trylock(arch_spinlock_t *lock)
 
 static inline void arch_spin_unlock(arch_spinlock_t *lock)
 {
-	unsigned long ticket, tmp;
-
 	smp_mb();
 
-	/* Bump now_serving by 1 */
-	__asm__ __volatile__(
-"1:	ldrex	%[ticket], [%[lockaddr]]\n"
-"	uadd16	%[ticket], %[ticket], %[serving1]\n"
-"	strex	%[tmp], %[ticket], [%[lockaddr]]\n"
-"	teq	%[tmp], #0\n"
-"	bne	1b"
-	: [ticket]"=&r" (ticket), [tmp]"=&r" (tmp)
-	: [lockaddr]"r" (&lock->lock), [serving1]"r" (0x00010000)
-	: "cc");
+	/* The lock itself protects the now_serving field, so as long as we
+	 * don't touch the next_ticket field, we don't need exclusive access to
+	 * unlock.
+	 */
+	((volatile uint16_t *)&lock->lock)[1]++;
+
 	dsb_sev();
-}
-
-static inline void arch_spin_unlock_wait(arch_spinlock_t *lock)
-{
-	unsigned long ticket, tmp, fixup = msm_krait_need_wfe_fixup;
-
-	/* Wait for now_serving == next_ticket */
-	__asm__ __volatile__(
-#ifdef CONFIG_CPU_32v6K
-"	cmpne	%[lockaddr], %[lockaddr]\n"
-"1:\n"
-"	beq	2f\n"
-	WFE_SAFE("%[fixup]", "%[tmp]")
-"2:\n"
-#else
-"1:\n"
-#endif
-"	ldr	%[ticket], [%[lockaddr]]\n"
-"	eor	%[ticket], %[ticket], %[ticket], lsr #16\n"
-"	uxth	%[ticket], %[ticket]\n"
-"	cmp	%[ticket], #0\n"
-"	bne	1b"
-	: [ticket]"=&r" (ticket), [tmp]"=&r" (tmp),
-	  [fixup]"+r" (fixup)
-	: [lockaddr]"r" (&lock->lock)
-	: "cc");
 }
 
 static inline int arch_spin_is_locked(arch_spinlock_t *lock)
 {
 	unsigned long tmp = ACCESS_ONCE(lock->lock);
-	return (((tmp >> TICKET_SHIFT) ^ tmp) & TICKET_MASK) != 0;
+	return tmp ^ ror32(tmp, TICKET_SHIFT);
 }
 
 static inline int arch_spin_is_contended(arch_spinlock_t *lock)
 {
 	unsigned long tmp = ACCESS_ONCE(lock->lock);
-	return ((tmp - (tmp >> TICKET_SHIFT)) & TICKET_MASK) > 1;
+	return (LOCK_TICKET(tmp) - LOCK_SERVING(tmp)) > 1;
 }
+
+static inline void arch_spin_unlock_wait(arch_spinlock_t *lock)
+{
+	while (arch_spin_is_locked(lock))
+		wfe_safe();
+}
+
+#undef BE
 #endif
 
 /*
@@ -294,20 +283,20 @@ static inline int arch_spin_is_contended(arch_spinlock_t *lock)
 
 static inline void arch_write_lock(arch_rwlock_t *rw)
 {
-	unsigned long tmp, fixup = msm_krait_need_wfe_fixup;
-
+	register volatile unsigned int *lockp asm ("r0") = &rw->lock;
 	__asm__ __volatile__(
-"1:	ldrex	%[tmp], [%[lock]]\n"
-"	teq	%[tmp], #0\n"
-"	beq	2f\n"
-	WFE_SAFE("%[fixup]", "%[tmp]")
-"2:\n"
-"	strexeq	%[tmp], %[bit31], [%[lock]]\n"
-"	teq	%[tmp], #0\n"
-"	bne	1b"
-	: [tmp] "=&r" (tmp), [fixup] "+r" (fixup)
-	: [lock] "r" (&rw->lock), [bit31] "r" (0x80000000)
-	: "cc");
+"1:	ldrex	r1, [r0]\n"
+"	teq	r1, #0\n"
+"	bne	5f\n"
+"	mov	r1, #0x80000000\n"
+"	strex	r2, r1, [r0]\n"
+"	teq	r2, #0\n"
+
+"5:	mov	r2, lr\n"
+"	blne	__arch_write_lock_slowpath\n"
+	:
+	: "r" (lockp)
+	: "r1", "r2", "cc");
 
 	smp_mb();
 }
@@ -324,22 +313,25 @@ static inline int arch_write_trylock(arch_rwlock_t *rw)
 	: "r" (&rw->lock), "r" (0x80000000)
 	: "cc");
 
-	if (tmp == 0) {
+	if (!tmp)
 		smp_mb();
-		return 1;
-	} else {
-		return 0;
-	}
+	return !tmp;
 }
 
 static inline void arch_write_unlock(arch_rwlock_t *rw)
 {
+	unsigned long tmp, tmp2;
+
 	smp_mb();
 
 	__asm__ __volatile__(
-	"str	%1, [%0]\n"
-	:
-	: "r" (&rw->lock), "r" (0)
+"1:	ldrex	%0, [%2]\n"
+"	bic	%0, %0, #0x80000000\n"
+"	strex	%1, %0, [%2]\n"
+"	teq	%1, #0\n"
+"	bne	1b"
+	: "=&r" (tmp), "=&r" (tmp2)
+	: "r" (&rw->lock)
 	: "cc");
 
 	dsb_sev();
@@ -362,20 +354,20 @@ static inline void arch_write_unlock(arch_rwlock_t *rw)
  */
 static inline void arch_read_lock(arch_rwlock_t *rw)
 {
-	unsigned long tmp, tmp2, fixup = msm_krait_need_wfe_fixup;
-
+	register volatile unsigned int *lockp asm ("r0") = &rw->lock;
 	__asm__ __volatile__(
-"1:	ldrex	%[tmp], [%[lock]]\n"
-"	adds	%[tmp], %[tmp], #1\n"
-"	strexpl	%[tmp2], %[tmp], [%[lock]]\n"
-"	bpl	2f\n"
-	WFE_SAFE("%[fixup]", "%[tmp]")
-"2:\n"
-"	rsbpls	%[tmp], %[tmp2], #0\n"
-"	bmi	1b"
-	: [tmp] "=&r" (tmp), [tmp2] "=&r" (tmp2), [fixup] "+r" (fixup)
-	: [lock] "r" (&rw->lock)
-	: "cc");
+"1:	ldrex	r1, [r0]\n"
+"	add	r1, r1, #1\n"
+"	strex	r2, r1, [r0]\n"
+"	teq	r2, #0\n"
+"	bne	1b\n"
+
+"	tst	r1, #0x80000000\n"
+"	mov	r2, lr\n"
+"	blne	__arch_read_lock_slowpath\n"
+	:
+	: "r" (lockp)
+	: "r1", "r2", "cc");
 
 	smp_mb();
 }
@@ -396,7 +388,7 @@ static inline void arch_read_unlock(arch_rwlock_t *rw)
 	: "r" (&rw->lock)
 	: "cc");
 
-	if (tmp == 0)
+	if (!tmp)
 		dsb_sev();
 }
 
@@ -412,8 +404,9 @@ static inline int arch_read_trylock(arch_rwlock_t *rw)
 	: "r" (&rw->lock)
 	: "cc");
 
-	smp_mb();
-	return tmp2 == 0;
+	if (!tmp2)
+		smp_mb();
+	return !tmp2;
 }
 
 /* read_can_lock - would read_trylock() succeed? */

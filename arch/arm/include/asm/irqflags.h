@@ -15,32 +15,56 @@ static inline unsigned long arch_local_irq_save(void)
 	unsigned long flags;
 
 	asm volatile(
-		"	mrs	%0, cpsr	@ arch_local_irq_save\n"
-		"	cpsid	i"
-		: "=r" (flags) : : "memory", "cc");
+	"	mrs	%0, cpsr\n"
+	"	ands	%0, %0, #0x80\n"
+	"	bne	1f\n"
+	"	cpsid	i			@ arch_local_irq_save\n"
+	"1:\n"
+	    : "=r" (flags) : : "memory", "cc");
+
 	return flags;
 }
 
 static inline void arch_local_irq_enable(void)
 {
-	asm volatile(
-		"	cpsie i			@ arch_local_irq_enable"
-		:
-		:
-		: "memory", "cc");
+	asm volatile("	cpsie i			@ arch_local_irq_enable"
+		: : : "memory");
 }
 
 static inline void arch_local_irq_disable(void)
 {
-	asm volatile(
-		"	cpsid i			@ arch_local_irq_disable"
-		:
-		:
-		: "memory", "cc");
+	asm volatile("	cpsid i			@ arch_local_irq_disable"
+		: : : "memory");
 }
 
-#define local_fiq_enable()  __asm__("cpsie f	@ __stf" : : : "memory", "cc")
-#define local_fiq_disable() __asm__("cpsid f	@ __clf" : : : "memory", "cc")
+/*
+ * Save the current interrupt enable state.
+ */
+static inline unsigned long arch_local_save_flags(void)
+{
+	unsigned long flags;
+	asm("	mrs	%0, cpsr		@ local_save_flags"
+	    : "=r" (flags) : : "memory");
+	return flags & PSR_I_BIT;
+}
+
+/*
+ * restore saved IRQ & FIQ state
+ */
+static inline void arch_local_irq_restore(unsigned long flags)
+{
+	if (!flags)
+		asm volatile("	cpsie i		@ local_irq_restore"
+			: : : "memory");
+}
+
+static inline int arch_irqs_disabled_flags(unsigned long flags)
+{
+	return flags;
+}
+
+#define local_fiq_enable()  asm volatile("cpsie f	@ __stf")
+#define local_fiq_disable() asm volatile("cpsid f	@ __clf")
 #else
 
 /*
@@ -120,8 +144,6 @@ static inline void arch_local_irq_disable(void)
 	: "memory", "cc");					\
 	})
 
-#endif
-
 /*
  * Save the current interrupt enable state.
  */
@@ -150,6 +172,7 @@ static inline int arch_irqs_disabled_flags(unsigned long flags)
 {
 	return flags & PSR_I_BIT;
 }
+#endif
 
 #endif
 #endif

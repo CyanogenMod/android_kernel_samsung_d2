@@ -33,6 +33,10 @@ config CPU_FREQ_STAT
 
 	  If in doubt, say N.
 
+config INTERACTION_HINTS
+	bool "Provide interaction hints to governors"
+	default y
+
 config CPU_FREQ_STAT_DETAILS
 	bool "CPU frequency translation statistics details"
 	depends on CPU_FREQ_STAT
@@ -41,6 +45,13 @@ config CPU_FREQ_STAT_DETAILS
 	  system.
 
 	  If in doubt, say N.
+
+config CPU_BOOST_DRIVER
+	bool "CPU frequency boost driver"
+	help
+	  A battery-hungry hydra: cut one touch booster off, two more grow back
+	  in its place.  This one is particularly vicious: it's even more
+	  aggressive, and it breaks CPU hotplugging.
 
 choice
 	prompt "Default CPUFreq governor"
@@ -99,6 +110,14 @@ config CPU_FREQ_DEFAULT_GOV_CONSERVATIVE
 	  Be aware that not all cpufreq drivers support the conservative
 	  governor. If unsure have a look at the help section of the
 	  driver. Fallback governor will be the performance governor.
+
+config CPU_FREQ_DEFAULT_GOV_FREELUNCH
+	bool "freelunch"
+	select CPU_FREQ_GOV_FREELUNCH
+
+config CPU_FREQ_DEFAULT_GOV_ASSWAX
+         bool "asswax"
+         select CPU_FREQ_GOV_ASSWAX
 
 config CPU_FREQ_DEFAULT_GOV_INTERACTIVE
 	bool "interactive"
@@ -205,6 +224,57 @@ config CPU_FREQ_GOV_CONSERVATIVE
 	  For details, take a look at linux/Documentation/cpu-freq.
 
 	  If in doubt, say N.
+
+config CPU_FREQ_GOV_FREELUNCH
+	tristate "'freelunch' cpufreq governor"
+	depends on CPU_FREQ && INTERACTION_HINTS
+
+config CPU_FREQ_GOV_ASSWAX
+        tristate "'asswax' cpufreq governor"
+        depends on CPU_FREQ
+
+config CPU_FREQ_GOV_INTELLIACTIVE
+	tristate "'intelliactive' cpufreq policy governor"
+	select CPU_FREQ_TABLE
+
+config CPU_FREQ_GOV_INTELLIDEMAND
+	tristate "'intellidemand' cpufreq policy governor"
+	select CPU_FREQ_TABLE
+
+config CPU_FREQ_GOV_TIERSERVATIVE
+	tristate "'tierservative' cpufreq governor"
+	depends on CPU_FREQ
+	select WMAVG
+	help
+	  Here be dragons.
+
+menu "Intellidemand configuration"
+depends on CPU_FREQ_GOV_INTELLIDEMAND
+
+config CPUFREQ_ID_PERFLOCK
+	bool "Intellidemand Performance Lock"
+	depends on CPU_FREQ_GOV_INTELLIDEMAND
+	default n
+
+config INTELLI_MAX_ACTIVE_FREQ
+	int "Max Active Freq for Intellidemand"
+	depends on CPU_FREQ_GOV_INTELLIDEMAND
+	default 1350000
+
+config INTELLI_MAX_INACTIVE_FREQ
+	int "Max Inactive Freq for Intellidemand"
+	depends on CPU_FREQ_GOV_INTELLIDEMAND
+	default 1026000
+
+config CPUFREQ_LIMIT_MAX_FREQ
+	bool "Limit Max Freq"
+	depends on CPU_FREQ_GOV_INTELLIDEMAND
+
+endmenu
+
+config CPU_FREQ_DVFS_MONITOR
+	bool "dvfs monitor"
+	depends on CPU_FREQ
 
 menu "x86 CPU frequency scaling drivers"
 depends on X86

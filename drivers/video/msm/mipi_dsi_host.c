@@ -67,32 +67,6 @@ enum {
 
 struct dcs_cmd_list	cmdlist;
 
-#ifdef CONFIG_FB_MSM_MDP40
-void mipi_dsi_mdp_stat_inc(int which)
-{
-	switch (which) {
-	case STAT_DSI_START:
-		mdp4_stat.dsi_mdp_start++;
-		break;
-	case STAT_DSI_ERROR:
-		mdp4_stat.intr_dsi_err++;
-		break;
-	case STAT_DSI_CMD:
-		mdp4_stat.intr_dsi_cmd++;
-		break;
-	case STAT_DSI_MDP:
-		mdp4_stat.intr_dsi_mdp++;
-		break;
-	default:
-		break;
-	}
-}
-#else
-void mipi_dsi_mdp_stat_inc(int which)
-{
-}
-#endif
-
 static void mdp_reset_wq_handler(struct work_struct *work)
 {
 	mdp4_mixer_reset(0);
@@ -1074,8 +1048,6 @@ void mipi_dsi_cmd_mdp_start(void)
 {
 	unsigned long flag;
 
-	mipi_dsi_mdp_stat_inc(STAT_DSI_START);
-
 	spin_lock_irqsave(&dsi_mdp_lock, flag);
 	mipi_dsi_enable_irq(DSI_MDP_TERM);
 	dsi_mdp_busy = TRUE;
@@ -2000,11 +1972,7 @@ irqreturn_t mipi_dsi_isr(int irq, void *ptr)
 
 	pr_debug("%s: isr=%x\n", __func__, (int)isr);
 
-#ifdef CONFIG_FB_MSM_MDP40
-	mdp4_stat.intr_dsi++;
-#endif
 	if (isr & DSI_INTR_ERROR) {
-		mipi_dsi_mdp_stat_inc(STAT_DSI_ERROR);
 		spin_lock(&dsi_mdp_lock);
 		dsi_ctrl_lock = FALSE;
 		dsi_mdp_busy = FALSE;
@@ -2022,7 +1990,6 @@ irqreturn_t mipi_dsi_isr(int irq, void *ptr)
 	}
 
 	if (isr & DSI_INTR_CMD_DMA_DONE) {
-		mipi_dsi_mdp_stat_inc(STAT_DSI_CMD);
 		spin_lock(&dsi_mdp_lock);
 		complete(&dsi_dma_comp);
 		dsi_ctrl_lock = FALSE;
@@ -2031,7 +1998,6 @@ irqreturn_t mipi_dsi_isr(int irq, void *ptr)
 	}
 
 	if (isr & DSI_INTR_CMD_MDP_DONE) {
-		mipi_dsi_mdp_stat_inc(STAT_DSI_MDP);
 		spin_lock(&dsi_mdp_lock);
 		dsi_ctrl_lock = FALSE;
 		dsi_mdp_busy = FALSE;

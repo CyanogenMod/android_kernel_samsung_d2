@@ -333,7 +333,6 @@ void mdp4_wfd_pipe_queue(int cndx, struct mdp4_overlay_pipe *pipe)
 	vp->update_cnt++;
 
 	mutex_unlock(&vctrl->update_lock);
-	mdp4_stat.overlay_play[pipe->mixer_num]++;
 }
 
 static void mdp4_writeback_pipe_clean(struct vsync_update *vp)
@@ -426,12 +425,9 @@ int mdp4_wfd_pipe_commit(struct msm_fb_data_type *mfd,
 	vsync_irq_enable(INTR_OVERLAY2_DONE, MDP_OVERLAY2_TERM);
 	pr_debug("%s: kickoff\n", __func__);
 	/* kickoff overlay engine */
-	mdp4_stat.kickoff_ov2++;
 	outpdw(MDP_BASE + 0x00D0, 0);
 	mb(); /* make sure kickoff executed */
 	spin_unlock_irqrestore(&vctrl->spin_lock, flags);
-
-	mdp4_stat.overlay_commit[pipe->mixer_num]++;
 
 	if (wait)
 		mdp4_wfd_wait4ov(cndx);

@@ -34,24 +34,6 @@
 #endif
 
 extern unsigned int system_rev;
-#if (defined(CONFIG_GPIO_SX150X) || defined(CONFIG_GPIO_SX150X_MODULE)) && \
-	defined(CONFIG_I2C)
-
-#if 0
-static struct i2c_board_info cam_expander_i2c_info[] = {
-	{
-		I2C_BOARD_INFO("sx1508q", 0x22),
-		.platform_data = &msm8960_sx150x_data[SX150X_CAM]
-	},
-};
-static struct msm_cam_expander_info cam_expander_info[] = {
-	{
-		cam_expander_i2c_info,
-		MSM_8960_GSBI4_QUP_I2C_BUS_ID,
-	},
-};
-#endif
-#endif
 
 static struct gpiomux_setting cam_settings[] = {
 	{
@@ -295,25 +277,6 @@ static struct msm_camera_gpio_conf front_gpio_conf = {
 	.cam_gpio_tbl = msm_cam_gpio_2d_tbl,
 	.cam_gpio_tbl_size = ARRAY_SIZE(msm_cam_gpio_2d_tbl),
 };
-
-#if defined(CONFIG_S5C73M3) && defined(CONFIG_S5K6A3YX)
-struct msm_camera_sensor_strobe_flash_data strobe_flash_xenon = {
-	.flash_trigger = GPIO_MSM_FLASH_NOW,
-	.flash_charge = GPIO_MSM_FLASH_CNTL_EN,
-	.flash_charge_done = GPIO_VFE_CAMIF_TIMER3_INT,
-	.flash_recharge_duration = 50000,
-	.irq = MSM_GPIO_TO_INT(GPIO_VFE_CAMIF_TIMER3_INT),
-};
-#ifdef CONFIG_MSM_CAMERA_FLASH
-#if 0
-static struct msm_camera_sensor_flash_src msm_flash_src = {
-	.flash_sr_type = MSM_CAMERA_FLASH_SRC_EXT,
-	._fsrc.ext_driver_src.led_en = GPIO_MSM_FLASH_CNTL_EN,
-	._fsrc.ext_driver_src.led_flash_en = GPIO_MSM_FLASH_NOW,
-};
-#endif
-#endif
-#endif
 
 static struct msm_bus_vectors cam_init_vectors[] = {
 	{
@@ -884,6 +847,7 @@ static void cam_ldo_power_off(int mode)
 		if (ret)
 			cam_err("error disabling regulator");
 		regulator_put(isp_core);
+#endif
 #elif defined(CONFIG_MACH_M2_DCM) || defined(CONFIG_MACH_K2_KDI)
 		gpio_set_value_cansleep(gpio_rev(CAM_CORE_EN), 0);
 #else
@@ -940,34 +904,6 @@ static void cam_get_fw(u8 *isp_fw, u8 *phone_fw)
 	rear_phone_fw = phone_fw;
 	pr_debug("sensor_fw = %s\n", rear_sensor_fw);
 	pr_debug("phone_fw = %s\n", rear_phone_fw);
-}
-
-/* test: Qualcomm */
-void print_ldos(void)
-{
-	int temp = 0;
-#if defined(CONFIG_MACH_M2_DCM) || defined(CONFIG_MACH_K2_KDI)
-	temp = gpio_get_value(gpio_rev(CAM_CORE_EN));
-#else
-	temp = gpio_get_value(CAM_CORE_EN);
-#endif
-	printk(KERN_DEBUG "[s5c73m3] check CAM_CORE_EN : %d\n", temp);
-
-	temp = gpio_get_value(GPIO_CAM_A_EN);
-	printk(KERN_DEBUG "[s5c73m3] check GPIO_CAM_A_EN : %d\n", temp);
-
-	temp = gpio_get_value(GPIO_CAM_SENSOR_EN);
-	printk(KERN_DEBUG "[s5c73m3] check GPIO_CAM_SENSOR_EN : %d\n", temp);
-
-	temp = gpio_get_value(CAM_MIPI_EN);
-	printk(KERN_DEBUG "[s5c73m3] check CAM_MIPI_EN : %d\n", temp);
-
-	temp = gpio_get_value(PM8921_GPIO_PM_TO_SYS(24));/*SPI_TEMP*/
-	printk(KERN_DEBUG "[s5c73m3] check ISP_STANDBY : %d\n", temp);
-
-	temp = gpio_get_value(ISP_RESET);
-	printk(KERN_DEBUG "[s5c73m3] check ISP_RESET : %d\n", temp);
-
 }
 
 #ifdef CONFIG_S5C73M3
@@ -1173,7 +1109,7 @@ static struct platform_device s3c_device_aat1290a_led = {
 };
 #endif
 
-static struct platform_device *cam_dev[] = {
+static struct platform_device *cam_dev[] __initdata = {
 #ifdef CONFIG_S5C73M3
 		&msm8960_camera_sensor_s5c73m3,
 #endif
@@ -1226,9 +1162,7 @@ static ssize_t back_camera_firmware_show(struct device *dev,
 	char cam_fw[] = "ISX012\n";
 #elif defined(CONFIG_S5K5CCGX)
 	char cam_fw[] = "S5K5CCGX\n";
-#endif
-
-#if defined(CONFIG_S5C73M3)
+#elif defined(CONFIG_S5C73M3)
 	return sprintf(buf, "%s %s", rear_sensor_fw, rear_phone_fw);
 #else
 	char cam_fw[] = "Rear default camera\n";
@@ -1296,7 +1230,7 @@ static ssize_t cameraflash_file_cmd_store(struct device *dev,
 static DEVICE_ATTR(rear_flash, S_IRUGO | S_IWUSR | S_IWGRP,
 		NULL, cameraflash_file_cmd_store);
 
-void msm8960_cam_create_node(void)
+static void msm8960_cam_create_node(void)
 {
 	struct device *cam_dev_back;
 	struct device *cam_dev_front;
@@ -1406,7 +1340,7 @@ static int32_t msm_camera_8960_ext_power_ctrl(int enable)
 	return rc;
 }
 #endif
-static int get_mclk_rev(void)
+static inline int get_mclk_rev(void)
 {
 #if defined(CONFIG_MACH_M2)
 	return ((system_rev >= BOARD_REV13) ? 1 : 0);
@@ -1548,7 +1482,6 @@ void __init msm8960_init_cam(void)
 
 	msm_get_cam_resources(s_info);
 	platform_device_register(cam_dev[1]);
-#endif
 	if (spi_register_board_info(
 				    s5c73m3_spi_info,
 				    ARRAY_SIZE(s5c73m3_spi_info)) != 0)
@@ -1556,6 +1489,7 @@ void __init msm8960_init_cam(void)
 			__func__);
 
 	pr_err("[%s:%d]setting done!!\n", __func__, __LINE__);
+#endif
 
 	platform_device_register(&msm8960_device_csiphy0);
 	platform_device_register(&msm8960_device_csiphy1);
@@ -1584,7 +1518,7 @@ struct msm_camera_board_info msm8960_camera_board_info = {
 	.num_i2c_board_info = ARRAY_SIZE(msm8960_camera_i2c_boardinfo),
 };
 
-struct resource msm_camera_resources[] = {
+static struct resource msm_camera_resources[] __initdata = {
 	{
 		.name   = "s3d_rw",
 		.start  = 0x008003E0,
@@ -1599,13 +1533,11 @@ struct resource msm_camera_resources[] = {
 	},
 };
 
-int __init msm_get_cam_resources(struct msm_camera_sensor_info *s_info)
+void __init msm_get_cam_resources(struct msm_camera_sensor_info *s_info)
 {
 	s_info->resource = msm_camera_resources;
 	s_info->num_resources = ARRAY_SIZE(msm_camera_resources);
-	return 0;
 }
 
-#endif
 #endif
 #endif

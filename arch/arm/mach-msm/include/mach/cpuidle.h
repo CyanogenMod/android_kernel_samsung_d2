@@ -23,6 +23,8 @@ struct msm_cpuidle_state {
 	char *name;
 	char *desc;
 	enum msm_pm_sleep_mode mode_nr;
+	unsigned int target_residency;
+	unsigned int exit_latency;
 };
 
 #ifdef CONFIG_PM

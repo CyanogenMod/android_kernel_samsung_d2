@@ -11,6 +11,8 @@
  *
  */
 
+#include "adreno.h"
+#if __adreno_is_a3xx
 #ifndef _A300_REG_H
 #define _A300_REG_H
 
@@ -709,4 +711,5 @@
 /* VBIF countables */
 #define VBIF_DDR_TOTAL_CYCLES 110
 
+#endif
 #endif

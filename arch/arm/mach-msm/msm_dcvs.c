@@ -140,13 +140,11 @@ struct dcvs_core {
 static int msm_dcvs_enabled = 1;
 module_param_named(enable, msm_dcvs_enabled, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
-static struct dentry		*debugfs_base;
-
 static struct dcvs_core core_list[CORES_MAX];
 
 static struct kobject *cores_kobj;
 
-#define DCVS_MAX_NUM_FREQS 15
+#define DCVS_MAX_NUM_FREQS 40
 static struct msm_dcvs_freq_entry cpu_freq_tbl[DCVS_MAX_NUM_FREQS];
 static unsigned num_cpu_freqs;
 static struct msm_dcvs_platform_data *dcvs_pdata;
@@ -1298,18 +1296,10 @@ static int __init msm_dcvs_late_init(void)
 		goto err;
 	}
 
-	debugfs_base = debugfs_create_dir("msm_dcvs", NULL);
-	if (!debugfs_base) {
-		__err("Cannot create debugfs base %s\n", "msm_dcvs");
-		ret = -ENOENT;
-		goto err;
-	}
-
 err:
 	if (ret) {
 		kobject_del(cores_kobj);
 		cores_kobj = NULL;
-		debugfs_remove(debugfs_base);
 	}
 
 	return ret;

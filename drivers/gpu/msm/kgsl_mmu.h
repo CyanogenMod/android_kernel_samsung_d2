@@ -96,6 +96,8 @@ enum kgsl_mmutype {
 	KGSL_MMU_TYPE_NONE
 };
 
+//#define KGSL_FORCE_MMU KGSL_MMU_TYPE_GPU
+
 struct kgsl_pagetable {
 	spinlock_t lock;
 	struct kref refcount;
@@ -224,9 +226,18 @@ int kgsl_mmu_pt_get_flags(struct kgsl_pagetable *pt,
 			enum kgsl_deviceid id);
 void kgsl_mmu_ptpool_destroy(void *ptpool);
 void *kgsl_mmu_ptpool_init(int entries);
+#ifdef KGSL_FORCE_MMU
+#define kgsl_mmu_enabled() \
+	(KGSL_FORCE_MMU == KGSL_MMU_TYPE_NONE ? 0 : 1)
+#define kgsl_mmu_set_mmutype(t) \
+	do { } while (0)
+#define kgsl_mmu_get_mmutype() \
+	(KGSL_FORCE_MMU)
+#else
 int kgsl_mmu_enabled(void);
 void kgsl_mmu_set_mmutype(char *mmutype);
 enum kgsl_mmutype kgsl_mmu_get_mmutype(void);
+#endif
 int kgsl_mmu_gpuaddr_in_range(unsigned int gpuaddr);
 
 /*

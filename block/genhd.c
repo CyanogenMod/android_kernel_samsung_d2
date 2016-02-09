@@ -1107,7 +1107,7 @@ static void disk_release(struct device *dev)
 
 	blk_free_devt(dev->devt);
 	disk_release_events(disk);
-	kfree(disk->random);
+	//kfree(disk->random);
 	disk_replace_part_tbl(disk, NULL);
 	free_part_stats(&disk->part0);
 	free_part_info(&disk->part0);
@@ -1294,7 +1294,7 @@ struct gendisk *alloc_disk_node(int minors, int node_id)
 		hd_ref_init(&disk->part0);
 
 		disk->minors = minors;
-		rand_initialize_disk(disk);
+		//rand_initialize_disk(disk);
 		disk_to_dev(disk)->class = &block_class;
 		disk_to_dev(disk)->type = &disk_type;
 		device_initialize(disk_to_dev(disk));

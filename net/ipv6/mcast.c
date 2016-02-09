@@ -64,7 +64,7 @@
 #include <net/ip6_checksum.h>
 
 /* Set to 3 to get tracing... */
-#define MCAST_DEBUG 2
+#define MCAST_DEBUG 0
 
 #if MCAST_DEBUG >= 3
 #define MDBG(x) printk x

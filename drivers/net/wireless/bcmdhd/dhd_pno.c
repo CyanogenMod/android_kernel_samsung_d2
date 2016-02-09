@@ -64,7 +64,7 @@
 
 #define NULL_CHECK(p, s, err)  \
 			do { \
-				if (!(p)) { \
+				if (unlikely(!(p))) { \
 					printf("NULL POINTER (%s) : %s\n", __FUNCTION__, (s)); \
 					err = BCME_ERROR; \
 					return err; \
@@ -121,7 +121,7 @@ exit:
 	return err;
 }
 
-static int
+static __maybe_unused int
 _dhd_pno_suspend(dhd_pub_t *dhd)
 {
 	int err;

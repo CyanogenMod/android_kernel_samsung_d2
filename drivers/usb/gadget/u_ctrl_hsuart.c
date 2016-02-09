@@ -479,6 +479,7 @@ free_ports:
 	return ret;
 }
 
+#ifdef CONFIG_DEBUG_FS
 #define DEBUG_BUF_SIZE	1024
 static ssize_t ghsuart_ctrl_read_stats(struct file *file, char __user *ubuf,
 		size_t count, loff_t *ppos)
@@ -590,6 +591,7 @@ static void __exit ghsuart_ctrl_exit(void)
 	ghsuart_ctrl_debugfs_exit();
 }
 module_exit(ghsuart_ctrl_exit);
+#endif
 
 MODULE_DESCRIPTION("HSUART control xport for RmNet");
 MODULE_LICENSE("GPL v2");

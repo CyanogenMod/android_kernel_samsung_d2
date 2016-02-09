@@ -2402,8 +2402,10 @@ static bool blk_update_bidi_request(struct request *rq, int error,
 	    blk_update_request(rq->next_rq, error, bidi_bytes))
 		return true;
 
+	/*
 	if (blk_queue_add_random(rq->q))
 		add_disk_randomness(rq->rq_disk);
+	*/
 
 	return false;
 }

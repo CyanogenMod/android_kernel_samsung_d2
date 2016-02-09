@@ -232,7 +232,7 @@ void dump_stack(void)
 	dump_backtrace(NULL, NULL);
 }
 
-EXPORT_SYMBOL(dump_stack);
+//EXPORT_SYMBOL(dump_stack);
 
 void show_stack(struct task_struct *tsk, unsigned long *sp)
 {

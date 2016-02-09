@@ -1319,7 +1319,7 @@ static void usb_debugfs_init(struct gs_port *ui_dev, int port_num)
 			dent, ui_dev, &debug_rst_ops);
 }
 #else
-static void usb_debugfs_init(struct gs_port *ui_dev) {}
+static void usb_debugfs_init(struct gs_port *ui_dev, int port_num) {}
 #endif
 
 /**

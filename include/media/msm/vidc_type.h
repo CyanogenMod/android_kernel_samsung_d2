@@ -23,8 +23,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/android_pmem.h>
 
-#define DEBUG   0
-#define VIDC_ENABLE_DBGFS
+//#define DEBUG   0
 
 #define USE_RES_TRACKER
 #endif

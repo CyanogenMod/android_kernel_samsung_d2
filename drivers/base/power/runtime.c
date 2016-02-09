@@ -842,6 +842,8 @@ int __pm_runtime_suspend(struct device *dev, int rpmflags)
 	}
 
 	spin_lock_irqsave(&dev->power.lock, flags);
+	if (!dev->power.use_autosuspend)
+		rpmflags &= ~RPM_AUTO;
 	retval = rpm_suspend(dev, rpmflags);
 	spin_unlock_irqrestore(&dev->power.lock, flags);
 

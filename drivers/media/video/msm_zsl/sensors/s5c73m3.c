@@ -468,7 +468,6 @@ static int s5c73m3_wait_ISP_status(void)
 		++index;
 		CAM_DBG_H("Waiting until to finish handling a command"
 			"in ISP =====>> %d\n", index);
-		usleep(500); /* Just for test delay */
 
 	} while (index < 400);
 
@@ -1371,8 +1370,7 @@ retry:
 			cam_err("failed s5c73m3_wait_ISP_status\n");
 				return -EIO;
 		}
-	} else
-		usleep(10*1000);
+	}
 
 	s5c73m3_ctrl->zoomPreValue = level;
 
@@ -3318,9 +3316,6 @@ static int s5c73m3_sensor_init_probe(const struct msm_camera_sensor_info *data)
 	int retVal = 0;
 	CAM_DBG_M("Entered\n");
 
-	/*data->sensor_platform_info->sensor_power_on(0);*/
-	usleep(5*1000);
-
 	if (!data->sensor_platform_info->sensor_is_vdd_core_set()) {
 		rc = s5c73m3_read_vdd_core();
 		if (rc < 0) {
@@ -3679,77 +3674,16 @@ int s5c73m3_sensor_config(void __user *argp)
 
 int s5c73m3_sensor_release(void)
 {
-	int rc = 0;
 	CAM_DBG_M("Entered\n");
 	s5c73m3_set_af_softlanding();
-	usleep(10*1000);
-	/*power off the LDOs*/
-	/*s5c73m3_ctrl->sensordata->sensor_platform_info->sensor_power_off(0);*/
-
-	return rc;
-}
-
-static int s5c73m3_i2c_probe(struct i2c_client *client,
-	const struct i2c_device_id *id)
-{
-	int rc = 0;
-	CAM_DBG_M("Entered\n");
-	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
-		rc = -ENOTSUPP;
-		goto probe_failure;
-	}
-
-	s5c73m3_sensorw =
-		kzalloc(sizeof(struct s5c73m3_work), GFP_KERNEL);
-
-	if (!s5c73m3_sensorw) {
-		rc = -ENOMEM;
-		goto probe_failure;
-	}
-
-	i2c_set_clientdata(client, s5c73m3_sensorw);
-	s5c73m3_init_client(client);
-	s5c73m3_client = client;
-
-
-	CAM_DBG_M("Exit\n");
-
 	return 0;
-
-probe_failure:
-	kfree(s5c73m3_sensorw);
-	s5c73m3_sensorw = NULL;
-	cam_err("s5c73m3_probe failed!\n");
-	return rc;
 }
-
-static const struct i2c_device_id s5c73m3_i2c_id[] = {
-	{ SENSOR_NAME, 0},
-	{ },
-};
-
-static struct i2c_driver s5c73m3_i2c_driver = {
-	.id_table = s5c73m3_i2c_id,
-	.probe  = s5c73m3_i2c_probe,
-	.remove = __exit_p(s5c73m3_i2c_remove),
-	.driver = {
-		.name = SENSOR_NAME,
-	},
-};
-
 
 static int s5c73m3_sensor_probe(const struct msm_camera_sensor_info *info,
 				struct msm_sensor_ctrl *s)
 {
-	int ret = -EIO;
-	int rc = i2c_add_driver(&s5c73m3_i2c_driver);
+	int ret;
 	CAM_DBG_M("Entered\n");
-
-	if (rc < 0 || s5c73m3_client == NULL) {
-	//	cam_err("%d :%d\n", rc, s5c73m3_client);
-		rc = -ENOTSUPP;
-		goto probe_done;
-	}
 
 	ret = s5c73m3_spi_init();
 	if (ret)
@@ -3765,9 +3699,8 @@ static int s5c73m3_sensor_probe(const struct msm_camera_sensor_info *info,
 	s->s_camera_type = BACK_CAMERA_2D;
 	s->s_mount_angle = 90;
 
-probe_done:
 	cam_err("Probe_done!!\n");
-	return rc;
+	return ret;
 }
 
 
@@ -3848,9 +3781,56 @@ static struct platform_driver msm_camera_driver = {
 	},
 };
 
+static int s5c73m3_i2c_probe(struct i2c_client *client,
+	const struct i2c_device_id *id)
+{
+	int rc = 0;
+	CAM_DBG_M("Entered\n");
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
+		rc = -ENOTSUPP;
+		goto probe_failure;
+	}
+
+	s5c73m3_sensorw =
+		kzalloc(sizeof(struct s5c73m3_work), GFP_KERNEL);
+
+	if (!s5c73m3_sensorw) {
+		rc = -ENOMEM;
+		goto probe_failure;
+	}
+
+	i2c_set_clientdata(client, s5c73m3_sensorw);
+	s5c73m3_init_client(client);
+	s5c73m3_client = client;
+
+	CAM_DBG_M("Exit\n");
+
+	return platform_driver_register(&msm_camera_driver);
+
+probe_failure:
+	kfree(s5c73m3_sensorw);
+	s5c73m3_sensorw = NULL;
+	cam_err("s5c73m3_probe failed!\n");
+	return rc;
+}
+
+static const struct i2c_device_id s5c73m3_i2c_id[] = {
+	{ SENSOR_NAME, 0},
+	{ },
+};
+
+static struct i2c_driver s5c73m3_i2c_driver = {
+	.id_table = s5c73m3_i2c_id,
+	.probe  = s5c73m3_i2c_probe,
+	.remove = __exit_p(s5c73m3_i2c_remove),
+	.driver = {
+		.name = SENSOR_NAME,
+	},
+};
+
 static int __init s5c73m3_init(void)
 {
-	return platform_driver_register(&msm_camera_driver);
+	return i2c_add_driver(&s5c73m3_i2c_driver);
 }
 
 module_init(s5c73m3_init);

@@ -31,10 +31,16 @@
 #include <linux/tick.h>
 #include <asm/smp_plat.h>
 #include <linux/suspend.h>
+#include <linux/delay.h>
+#include <linux/hotplug_mgmt.h>
 
 #define MAX_LONG_SIZE 24
 #define DEFAULT_RQ_POLL_JIFFIES 1
 #define DEFAULT_DEF_TIMER_JIFFIES 5
+
+struct rq_data rq_info;
+static struct workqueue_struct *rq_wq;
+static spinlock_t rq_lock;
 
 struct notifier_block freq_transition;
 struct notifier_block cpu_hotplug;
@@ -50,10 +56,80 @@ struct cpu_load_data {
 	unsigned int cur_freq;
 	unsigned int policy_max;
 	cpumask_var_t related_cpus;
-	struct mutex cpu_load_mutex;
+	spinlock_t cpu_load_lock;
 };
 
 static DEFINE_PER_CPU(struct cpu_load_data, cpuload);
+
+static void mpdec_timer_tick(int cpu) {
+        unsigned long jiffy_gap = 0;
+        unsigned int rq_avg = 0;
+        unsigned long flags = 0;
+
+	if (cpu)
+		return;
+
+	jiffy_gap = jiffies - rq_info.rq_poll_last_jiffy;
+
+	if (jiffy_gap >= rq_info.rq_poll_jiffies) {
+		rq_avg = nr_running() * 10;
+
+		spin_lock_irqsave(&rq_lock, flags);
+
+		if (rq_info.rq_poll_total_jiffies) {
+			rq_avg = (rq_avg * jiffy_gap) +
+				(rq_info.rq_avg *
+				 rq_info.rq_poll_total_jiffies);
+			do_div(rq_avg,
+			       rq_info.rq_poll_total_jiffies + jiffy_gap);
+		}
+
+		rq_info.rq_avg = rq_avg;
+		rq_info.rq_poll_total_jiffies += jiffy_gap;
+		rq_info.rq_poll_last_jiffy = jiffies;
+
+		spin_unlock_irqrestore(&rq_lock, flags);
+	}
+
+	jiffy_gap = jiffies - rq_info.def_timer_last_jiffy;
+
+	if (jiffy_gap >= rq_info.def_timer_jiffies) {
+		rq_info.def_timer_last_jiffy = jiffies;
+		queue_work(rq_wq, &rq_info.def_timer_work);
+        }
+}
+
+static void mpdec_hooks_register(bool enable) {
+	if (enable) {
+		unsigned long flags;
+		cpufreq_register_notifier(&freq_transition,
+					CPUFREQ_TRANSITION_NOTIFIER);
+		spin_lock_irqsave(&rq_lock, flags);
+		rq_info.rq_avg = 0;
+		rq_info.rq_poll_total_jiffies = 0;
+		rq_info.def_timer_last_jiffy =
+			rq_info.rq_poll_last_jiffy = jiffies;
+		spin_unlock_irqrestore(&rq_lock, flags);
+	} else {
+		cpufreq_unregister_notifier(&freq_transition,
+					CPUFREQ_TRANSITION_NOTIFIER);
+	}
+}
+
+static struct hotplug_alg mpdec_alg = {
+	.name = "mpdecision",
+	.prio = HP_ALG_USER,
+	.init_cb = mpdec_hooks_register,
+	.tick_cb = mpdec_timer_tick
+};
+
+// intellidemand relies on rq_info.rq_avg, so let it re-enable mpdecision
+struct hotplug_alg intellidemand_mpdec_alg = {
+	.name = "intellidemand-mpdecision",
+	.prio = HP_ALG_CPUFREQ,
+	.init_cb = mpdec_hooks_register,
+	.tick_cb = mpdec_timer_tick
+};
 
 static inline cputime64_t get_cpu_iowait_time(unsigned int cpu,
 							cputime64_t *wall)
@@ -125,12 +201,13 @@ static unsigned int report_load_at_max_freq(void)
 	unsigned int total_load = 0;
 
 	for_each_online_cpu(cpu) {
+		unsigned long flags;
 		pcpu = &per_cpu(cpuload, cpu);
-		mutex_lock(&pcpu->cpu_load_mutex);
+		spin_lock_irqsave(&pcpu->cpu_load_lock, flags);
 		update_average_load(pcpu->cur_freq, cpu);
 		total_load += pcpu->avg_load_maxfreq;
 		pcpu->avg_load_maxfreq = 0;
-		mutex_unlock(&pcpu->cpu_load_mutex);
+		spin_unlock_irqrestore(&pcpu->cpu_load_lock, flags);
 	}
 	return total_load;
 }
@@ -145,11 +222,12 @@ static int cpufreq_transition_handler(struct notifier_block *nb,
 	switch (val) {
 	case CPUFREQ_POSTCHANGE:
 		for_each_cpu(j, this_cpu->related_cpus) {
+			unsigned long flags;
 			struct cpu_load_data *pcpu = &per_cpu(cpuload, j);
-			mutex_lock(&pcpu->cpu_load_mutex);
+			spin_lock_irqsave(&pcpu->cpu_load_lock, flags);
 			update_average_load(freqs->old, freqs->cpu);
 			pcpu->cur_freq = freqs->new;
-			mutex_unlock(&pcpu->cpu_load_mutex);
+			spin_unlock_irqrestore(&pcpu->cpu_load_lock, flags);
 		}
 		break;
 	}
@@ -235,6 +313,7 @@ static ssize_t run_queue_avg_show(struct kobject *kobj,
 	/* rq avg currently available only on one core */
 	val = rq_info.rq_avg;
 	rq_info.rq_avg = 0;
+	rq_info.rq_poll_total_jiffies = 0;
 	spin_unlock_irqrestore(&rq_lock, flags);
 
 	return snprintf(buf, PAGE_SIZE, "%d.%d\n", val/10, val%10);
@@ -262,16 +341,11 @@ static ssize_t store_run_queue_poll_ms(struct kobject *kobj,
 {
 	unsigned int val = 0;
 	unsigned long flags = 0;
-	static DEFINE_MUTEX(lock_poll_ms);
-
-	mutex_lock(&lock_poll_ms);
 
 	spin_lock_irqsave(&rq_lock, flags);
 	sscanf(buf, "%u", &val);
 	rq_info.rq_poll_jiffies = msecs_to_jiffies(val);
 	spin_unlock_irqrestore(&rq_lock, flags);
-
-	mutex_unlock(&lock_poll_ms);
 
 	return count;
 }
@@ -297,6 +371,9 @@ static ssize_t store_def_timer_ms(struct kobject *kobj,
 		struct kobj_attribute *attr, const char *buf, size_t count)
 {
 	unsigned int val = 0;
+
+	if (unlikely(!mpdec_alg.avail))
+		hotplug_alg_available(&mpdec_alg, 1);
 
 	sscanf(buf, "%u", &val);
 	rq_info.def_timer_jiffies = msecs_to_jiffies(val);
@@ -360,10 +437,8 @@ static int __init msm_rq_stats_init(void)
 	int i;
 	struct cpufreq_policy cpu_policy;
 	/* Bail out if this is not an SMP Target */
-	if (!is_smp()) {
-		rq_info.init = 0;
+	if (!is_smp())
 		return -ENOSYS;
-	}
 
 	rq_wq = create_singlethread_workqueue("rq_stats");
 	BUG_ON(!rq_wq);
@@ -376,11 +451,9 @@ static int __init msm_rq_stats_init(void)
 	rq_info.hotplug_disabled = 0;
 	ret = init_rq_attribs();
 
-	rq_info.init = 1;
-
 	for_each_possible_cpu(i) {
 		struct cpu_load_data *pcpu = &per_cpu(cpuload, i);
-		mutex_init(&pcpu->cpu_load_mutex);
+		spin_lock_init(&pcpu->cpu_load_lock);
 		cpufreq_get_policy(&cpu_policy, i);
 		pcpu->policy_max = cpu_policy.cpuinfo.max_freq;
 		if (cpu_online(i))
@@ -390,11 +463,9 @@ static int __init msm_rq_stats_init(void)
 	freq_transition.notifier_call = cpufreq_transition_handler;
 	cpu_hotplug.notifier_call = cpu_hotplug_handler;
 	freq_policy.notifier_call = freq_policy_handler;
-	cpufreq_register_notifier(&freq_transition,
-					CPUFREQ_TRANSITION_NOTIFIER);
 	register_hotcpu_notifier(&cpu_hotplug);
-	cpufreq_register_notifier(&freq_policy,
-					CPUFREQ_POLICY_NOTIFIER);
+
+	hotplug_register_alg(&mpdec_alg);
 
 	return ret;
 }
@@ -403,10 +474,8 @@ late_initcall(msm_rq_stats_init);
 static int __init msm_rq_stats_early_init(void)
 {
 	/* Bail out if this is not an SMP Target */
-	if (!is_smp()) {
-		rq_info.init = 0;
+	if (!is_smp())
 		return -ENOSYS;
-	}
 
 	pm_notifier(system_suspend_handler, 0);
 	return 0;

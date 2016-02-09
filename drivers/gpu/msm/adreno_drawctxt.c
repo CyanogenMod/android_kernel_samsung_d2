@@ -295,7 +295,9 @@ void adreno_drawctxt_switch(struct adreno_device *adreno_dev,
 				struct adreno_context *drawctxt,
 				unsigned int flags)
 {
+#if !CONFIG_AXXX_REV
 	struct kgsl_device *device = &adreno_dev->dev;
+#endif
 
 	if (drawctxt) {
 		if (flags & KGSL_CONTEXT_SAVE_GMEM)

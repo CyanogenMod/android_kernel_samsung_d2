@@ -166,9 +166,7 @@ struct msm_fb_data_type {
 	__u32 var_pixclock;
 	__u32 var_frame_rate;
 
-#ifdef MSM_FB_ENABLE_DBGFS
 	struct dentry *sub_dir;
-#endif
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	struct early_suspend early_suspend;

@@ -394,6 +394,7 @@ static int set_vdd_dig_8960(struct clk_vdd_class *vdd_class, int level)
 
 static DEFINE_VDD_CLASS(vdd_dig, set_vdd_dig_8960, VDD_DIG_NUM);
 
+#if 0
 static int rpm_vreg_dig_8930 = RPM_VREG_ID_PM8038_VDD_DIG_CORNER;
 static int set_vdd_dig_8930(struct clk_vdd_class *vdd_class, int level)
 {
@@ -408,6 +409,7 @@ static int set_vdd_dig_8930(struct clk_vdd_class *vdd_class, int level)
 					vdd_corner[level],
 					RPM_VREG_CORNER_HIGH, 1);
 }
+#endif
 
 #define VDD_DIG_FMAX_MAP1(l1, f1) \
 	.vdd_class = &vdd_dig,			\
@@ -480,6 +482,7 @@ static int set_vdd_sr2_hdmi_pll_8064(struct clk_vdd_class *vdd_class, int level)
 				    sr2_lreg_uv[level], sr2_lreg_uv[level], 1);
 }
 
+#if 0
 static int set_vdd_sr2_hdmi_pll_8930_pm8917(struct clk_vdd_class *vdd_class,
 	int level)
 {
@@ -515,6 +518,7 @@ static int set_vdd_sr2_hdmi_pll_8930(struct clk_vdd_class *vdd_class, int level)
 	return rpm_vreg_set_voltage(RPM_VREG_ID_PM8038_L23, RPM_VREG_VOTER3,
 				    sr2_lreg_uv[level], sr2_lreg_uv[level], 1);
 }
+#endif
 
 /*
  * Clock Descriptions
@@ -3551,6 +3555,9 @@ static struct clk_freq_tbl clk_tbl_gfx3d_8960[] = {
 	F_GFX3D(300000000, pll3, 1,  4),
 	F_GFX3D(320000000, pll2, 2,  5),
 	F_GFX3D(400000000, pll2, 1,  2),
+	F_GFX3D(480000000, pll3, 2,  5),
+	F_GFX3D(533333000, pll3, 4,  9),
+	F_GFX3D(600000000, pll3, 2,  4),
 	F_END
 };
 
@@ -3645,7 +3652,7 @@ static struct rcg_clk gfx3d_clk = {
 		.dbg_name = "gfx3d_clk",
 		.ops = &clk_ops_rcg,
 		VDD_DIG_FMAX_MAP3(LOW,  128000000, NOMINAL, 300000000,
-				  HIGH, 400000000),
+				  HIGH, 600000000),
 		CLK_INIT(gfx3d_clk.c),
 		.depends = &gmem_axi_clk.c,
 	},
@@ -4821,7 +4828,6 @@ static DEFINE_CLK_VOTER(ebi1_msmbus_a_clk, &ebi1_a_clk.c, LONG_MAX);
 static DEFINE_CLK_VOTER(afab_acpu_a_clk, &afab_a_clk.c, LONG_MAX);
 static DEFINE_CLK_VOTER(afab_msmbus_a_clk, &afab_a_clk.c, LONG_MAX);
 
-#ifdef CONFIG_DEBUG_FS
 struct measure_sel {
 	u32 test_vector;
 	struct clk *c;
@@ -4836,6 +4842,7 @@ static DEFINE_CLK_MEASURE(q6sw_clk);
 static DEFINE_CLK_MEASURE(q6fw_clk);
 static DEFINE_CLK_MEASURE(q6_func_clk);
 
+#ifdef CONFIG_DEBUG_FS
 static struct measure_sel measure_mux[] = {
 	{ TEST_PER_LS(0x08), &slimbus_xo_src_clk.c },
 	{ TEST_PER_LS(0x12), &sdc1_p_clk.c },
@@ -5232,6 +5239,7 @@ static struct measure_clk measure_clk = {
 	.multiplier = 1,
 };
 
+#if 0
 static struct clk_lookup msm_clocks_8064[] = {
 	CLK_LOOKUP("xo",		cxo_a_clk.c,	""),
 	CLK_LOOKUP("xo",		pxo_a_clk.c,	""),
@@ -5609,6 +5617,7 @@ static struct clk_lookup msm_clocks_8064[] = {
 	CLK_LOOKUP("vcodec_iommu1_clk", vcodec_axi_b_clk.c, "mdp.0"),
 	CLK_LOOKUP("smmu_iface_clk", smmu_p_clk.c,	"mdp.0"),
 };
+#endif
 
 static struct clk_lookup msm_clocks_8960_common[] __initdata = {
 	CLK_LOOKUP("xo",		cxo_a_clk.c,	""),
@@ -6002,6 +6011,7 @@ static struct clk_lookup msm_clocks_8960[ARRAY_SIZE(msm_clocks_8960_common)
 	+ ARRAY_SIZE(msm_clocks_8960_only)
 	+ ARRAY_SIZE(msm_clocks_8960ab_only)];
 
+#if 0
 static struct clk_lookup msm_clocks_8930[] = {
 	CLK_LOOKUP("xo",		cxo_clk.c,	"msm_xo"),
 	CLK_LOOKUP("cxo",		cxo_clk.c,	"wcnss_wlan.0"),
@@ -6329,6 +6339,7 @@ static struct clk_lookup msm_clocks_8930[] = {
 	CLK_LOOKUP("vcodec_iommu1_clk", vcodec_axi_b_clk.c, "mdp.0"),
 	CLK_LOOKUP("smmu_iface_clk", smmu_p_clk.c,	"mdp.0"),
 };
+#endif
 /*
  * Miscellaneous clock register initializations
  */
@@ -6733,6 +6744,7 @@ static void __init msm8960_clock_pre_init(void)
 	clk_ops_local_pll.enable = sr_pll_clk_enable;
 }
 
+#if 0
 static void __init msm8930_pm8917_clock_pre_init(void)
 {
 	/* detect pmic8917 from board file, and call this init function */
@@ -6751,6 +6763,7 @@ static void __init msm8930_clock_pre_init(void)
 
 	msm8960_clock_pre_init();
 }
+#endif
 
 static void __init msm8960_clock_post_init(void)
 {
@@ -6851,6 +6864,7 @@ struct clock_init_data msm8960_clock_init_data __initdata = {
 	.late_init = msm8960_clock_late_init,
 };
 
+#if 0
 struct clock_init_data apq8064_clock_init_data __initdata = {
 	.table = msm_clocks_8064,
 	.size = ARRAY_SIZE(msm_clocks_8064),
@@ -6874,3 +6888,4 @@ struct clock_init_data msm8930_pm8917_clock_init_data __initdata = {
 	.post_init = msm8960_clock_post_init,
 	.late_init = msm8960_clock_late_init,
 };
+#endif

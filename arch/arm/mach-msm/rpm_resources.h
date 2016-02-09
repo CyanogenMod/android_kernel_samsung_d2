@@ -138,7 +138,6 @@ static inline int msm_rpmrs_clear_nosleep(
 	return rc;
 }
 
-void msm_rpmrs_show_resources(void);
 int msm_rpmrs_levels_init(struct msm_rpmrs_platform_data *data);
 
 #else

@@ -27,7 +27,7 @@
 
 #include "modem_notifier.h"
 
-#define DEBUG
+//#define DEBUG
 
 #ifdef CONFIG_SEC_DEBUG_LOW_LOG
 #include <asm/uaccess.h>

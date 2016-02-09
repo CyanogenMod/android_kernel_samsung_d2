@@ -95,9 +95,7 @@ static uint32_t is_modem_smsm_inited(void);
 #define SMD_PKT_IPC_LOG_PAGE_CNT 2
 static void *smd_pkt_ilctxt;
 
-static int msm_smd_pkt_debug_mask;
-module_param_named(debug_mask, msm_smd_pkt_debug_mask,
-		int, S_IRUGO | S_IWUSR | S_IWGRP);
+#define msm_smd_pkt_debug_mask (0)
 
 enum {
 	SMD_PKT_STATUS = 1U << 0,
@@ -105,8 +103,6 @@ enum {
 	SMD_PKT_WRITE = 1U << 2,
 	SMD_PKT_POLL = 1U << 5,
 };
-
-#define DEBUG
 
 #ifdef DEBUG
 

@@ -137,6 +137,42 @@ static inline int atomic_cmpxchg(atomic_t *ptr, int old, int new)
 	return oldval;
 }
 
+static inline void atomic_clear_mask(unsigned long mask, atomic_t *v)
+{
+	unsigned long tmp, tmp2;
+
+	smp_mb();
+	prefetchw(&v->counter);
+
+	__asm__ __volatile__("@ atomic_clear_mask\n"
+"1:	ldrex	%0, [%3]\n"
+"	bic	%0, %0, %4\n"
+"	strex	%1, %0, [%3]\n"
+"	teq	%1, #0\n"
+"	bne	1b"
+	: "=&r" (tmp), "=&r" (tmp2), "+Qo" (v->counter)
+	: "r" (&v->counter), "Ir" (mask)
+	: "cc");
+}
+
+static inline void atomic_set_mask(unsigned int mask, atomic_t *v)
+{
+	unsigned long tmp, tmp2;
+
+	smp_mb();
+	prefetchw(&v->counter);
+
+	__asm__ __volatile__("@ atomic_set_mask\n"
+"1:	ldrex	%0, [%3]\n"
+"	orr	%0, %0, %4\n"
+"	strex	%1, %0, [%3]\n"
+"	teq	%1, #0\n"
+"	bne	1b"
+	: "=&r" (tmp), "=&r" (tmp2), "+Qo" (v->counter)
+	: "r" (&v->counter), "Ir" (mask)
+	: "cc");
+}
+
 static inline int __atomic_add_unless(atomic_t *v, int a, int u)
 {
 	int oldval, newval;

@@ -31,13 +31,13 @@ static struct msm_cpuidle_state msm_cstates[] = {
 		MSM_PM_SLEEP_MODE_WAIT_FOR_INTERRUPT},
 
 	{0, 1, "C1", "RETENTION",
-		MSM_PM_SLEEP_MODE_RETENTION},
+		MSM_PM_SLEEP_MODE_RETENTION, 475, 415},
 
 	{0, 2, "C2", "STANDALONE_POWER_COLLAPSE",
-		MSM_PM_SLEEP_MODE_POWER_COLLAPSE_STANDALONE},
+		MSM_PM_SLEEP_MODE_POWER_COLLAPSE_STANDALONE, 2000, 1300},
 
 	{0, 3, "C3", "POWER_COLLAPSE",
-		MSM_PM_SLEEP_MODE_POWER_COLLAPSE},
+		MSM_PM_SLEEP_MODE_POWER_COLLAPSE, 3200, 2000},
 
 	{1, 0, "C0", "WFI",
 		MSM_PM_SLEEP_MODE_WAIT_FOR_INTERRUPT},
@@ -114,10 +114,10 @@ static void __init msm_cpuidle_set_states(void)
 		state = &msm_cpuidle_driver.states[state_count];
 		snprintf(state->name, CPUIDLE_NAME_LEN, cstate->name);
 		snprintf(state->desc, CPUIDLE_DESC_LEN, cstate->desc);
-		state->flags = 0;
-		state->exit_latency = 0;
+		state->flags = CPUIDLE_FLAG_TIME_VALID;
+		state->exit_latency = cstate->exit_latency;
 		state->power_usage = 0;
-		state->target_residency = 0;
+		state->target_residency = cstate->target_residency;
 		state->enter = msm_cpuidle_enter;
 
 		state_count++;

@@ -270,18 +270,6 @@ int _MLPrintVaLog(int priority, const char *tag, const char *fmt, va_list args);
 /* Final implementation of actual writing to a character device */
 int _MLWriteLog(const char *buf, int buflen);
 
-static inline void __print_result_location(int result,
-					   const char *file,
-					   const char *func, int line)
-{
-	MPL_LOGE("%s|%s|%d returning %d\n", file, func, line, result);
-}
-
 #define LOG_RESULT_LOCATION(condition) \
-	do {								\
-		__print_result_location((int)(condition), __FILE__,	\
-					__func__, __LINE__);		\
-	} while (0)
-
-
+	MPL_LOGE("%s@%d: returning %d\n", __func__, __LINE__, (int)(condition));
 #endif				/* _LIBS_CUTILS_MPL_LOG_H */

@@ -57,7 +57,7 @@ extern uint32 g_assert_type;
 /* ASSERT */
 #if defined(BCMASSERT_LOG)
 	#define ASSERT(exp) \
-	  do { if (!(exp)) osl_assert(#exp, __FILE__, __LINE__); } while (0)
+	  do { if (unlikely(!(exp))) osl_assert(#exp, __FILE__, __LINE__); } while (0)
 extern void osl_assert(const char *exp, const char *file, int line);
 #else
 	#ifdef __GNUC__

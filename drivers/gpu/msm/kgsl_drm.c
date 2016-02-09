@@ -1227,7 +1227,7 @@ kgsl_gem_lock_handle_ioctl(struct drm_device *dev, void *data,
 	int32_t fence_index;
 
 	/* copy in the data from user space */
-	lock_list = kzalloc(sizeof(uint32_t) * args->num_handles, GFP_KERNEL);
+	lock_list = kmalloc(sizeof(uint32_t) * args->num_handles, GFP_KERNEL);
 	if (!lock_list) {
 		DRM_ERROR("Unable allocate memory for lock list\n");
 		result = -ENOMEM;

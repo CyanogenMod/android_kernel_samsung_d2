@@ -92,6 +92,8 @@ struct cpuidle_device {
 	unsigned int		enabled:1;
 	unsigned int		cpu;
 
+	int			est_residency;
+
 	int			last_residency;
 	int			state_count;
 	struct cpuidle_state_usage	states_usage[CPUIDLE_STATE_MAX];

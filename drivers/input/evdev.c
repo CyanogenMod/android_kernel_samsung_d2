@@ -402,60 +402,45 @@ static ssize_t evdev_write(struct file *file, const char __user *buffer,
 	return retval;
 }
 
-static int evdev_fetch_next_event(struct evdev_client *client,
-				  struct input_event *event)
-{
-	int have_event;
-
-	spin_lock_irq(&client->buffer_lock);
-
-	have_event = client->packet_head != client->tail;
-	if (have_event) {
-		*event = client->buffer[client->tail++];
-		client->tail &= client->bufsize - 1;
-		if (client->use_wake_lock &&
-		    client->packet_head == client->tail)
-			wake_unlock(&client->wake_lock);
-	}
-
-	spin_unlock_irq(&client->buffer_lock);
-
-	return have_event;
-}
-
 static ssize_t evdev_read(struct file *file, char __user *buffer,
 			  size_t count, loff_t *ppos)
 {
 	struct evdev_client *client = file->private_data;
 	struct evdev *evdev = client->evdev;
-	struct input_event event;
 	int retval = 0;
 
 	if (count < input_event_size())
 		return -EINVAL;
 
-	if (!(file->f_flags & O_NONBLOCK)) {
-		retval = wait_event_interruptible(evdev->wait,
-				client->packet_head != client->tail ||
-				!evdev->exist);
-		if (retval)
-			return retval;
+	if (client->packet_head == client->tail) {
+		if (!(file->f_flags & O_NONBLOCK)) {
+			retval = wait_event_interruptible(evdev->wait,
+					client->packet_head != client->tail ||
+					!evdev->exist);
+			if (retval)
+				return retval;
+		} else {
+			return -EAGAIN;
+		}
 	}
 
 	if (!evdev->exist)
 		return -ENODEV;
 
+	spin_lock_irq(&client->buffer_lock);
 	while (retval + input_event_size() <= count &&
-	       evdev_fetch_next_event(client, &event)) {
-
-		if (input_event_to_user(buffer + retval, &event))
-			return -EFAULT;
-
+	       client->packet_head != client->tail) {
+		input_event_to_user(buffer + retval,
+			&client->buffer[client->tail++]);
+		client->tail &= client->bufsize - 1;
 		retval += input_event_size();
 	}
 
-	if (retval == 0 && (file->f_flags & O_NONBLOCK))
-		return -EAGAIN;
+	if (client->use_wake_lock &&
+	    client->packet_head == client->tail)
+		wake_unlock(&client->wake_lock);
+
+	spin_unlock_irq(&client->buffer_lock);
 
 	return retval;
 }

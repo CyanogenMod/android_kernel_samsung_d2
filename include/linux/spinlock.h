@@ -235,16 +235,20 @@ static inline void do_raw_spin_unlock(raw_spinlock_t *lock) __releases(lock)
 
 #define raw_spin_trylock_irq(lock) \
 ({ \
-	local_irq_disable(); \
-	raw_spin_trylock(lock) ? \
-	1 : ({ local_irq_enable(); 0;  }); \
+	raw_spin_is_locked(lock) ? 0 : \
+	({ local_irq_disable(); \
+	   raw_spin_trylock(lock) ? 1 : \
+	   ({ local_irq_enable(); 0; }); \
+	}); \
 })
 
 #define raw_spin_trylock_irqsave(lock, flags) \
 ({ \
-	local_irq_save(flags); \
-	raw_spin_trylock(lock) ? \
-	1 : ({ local_irq_restore(flags); 0; }); \
+	raw_spin_is_locked(lock) ? 0 : \
+	({ local_irq_save(flags); \
+	   raw_spin_trylock(lock) ? 1 : \
+	   ({ local_irq_restore(flags); 0; }); \
+	}); \
 })
 
 /**

@@ -16,47 +16,19 @@
 extern unsigned int kgsl_cff_dump_enable;
 
 #define KGSL_LOG_INFO(dev, lvl, fmt, args...) \
-	do { \
-		if ((lvl) >= 6)  \
-			dev_info(dev, "|%s| " fmt, \
-					__func__, ##args);\
-	} while (0)
-
+	do { } while (0)
 #define KGSL_LOG_WARN(dev, lvl, fmt, args...) \
-	do { \
-		if ((lvl) >= 4)  \
-			dev_warn(dev, "|%s| " fmt, \
-					__func__, ##args);\
-	} while (0)
-
+	do { } while (0)
 #define KGSL_LOG_ERR(dev, lvl, fmt, args...) \
-	do { \
-		if ((lvl) >= 3)  \
-			dev_err(dev, "|%s| " fmt, \
-					__func__, ##args);\
-	} while (0)
-
+	do { } while (0)
 #define KGSL_LOG_CRIT(dev, lvl, fmt, args...) \
-	do { \
-		if ((lvl) >= 2) \
-			dev_crit(dev, "|%s| " fmt, \
-					__func__, ##args);\
-	} while (0)
-
+	do { } while (0)
 #define KGSL_LOG_POSTMORTEM_WRITE(_dev, fmt, args...) \
-	do { dev_crit(_dev->dev, fmt, ##args); } while (0)
-
-#define KGSL_LOG_DUMP(_dev, fmt, args...)	dev_err(_dev->dev, fmt, ##args)
-
+	do { } while (0)
+#define KGSL_LOG_DUMP(_dev, fmt, args...) \
+	do { } while (0)
 #define KGSL_DEV_ERR_ONCE(_dev, fmt, args...) \
-({ \
-	static bool kgsl_dev_err_once; \
-							\
-	if (!kgsl_dev_err_once) { \
-		kgsl_dev_err_once = true; \
-		dev_crit(_dev->dev, "|%s| " fmt, __func__, ##args); \
-	} \
-})
+	do { } while (0)
 
 #define KGSL_DRV_INFO(_dev, fmt, args...) \
 KGSL_LOG_INFO(_dev->dev, _dev->drv_log, fmt, ##args)

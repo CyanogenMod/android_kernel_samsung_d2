@@ -10,8 +10,9 @@ obj-y += snddev_hdmi.o
 obj-y += audio_mvs.o
 obj-$(CONFIG_FB_MSM_HDMI_MSM_PANEL) += lpa_if_hdmi.o
 endif
-obj-$(CONFIG_MSM_QDSP6_APR) += apr.o apr_v1.o apr_tal.o q6core.o dsp_debug.o
-obj-$(CONFIG_MSM_QDSP6_APRV2) += apr.o apr_v2.o apr_tal.o q6core.o dsp_debug.o
+obj-$(CONFIG_MSM_QDSP6_APR) += apr.o apr_v1.o apr_tal.o q6core.o
+obj-$(CONFIG_MSM_QDSP6_APRV2) += apr.o apr_v2.o apr_tal.o q6core.o
+obj-$(CONFIG_MSM_QDSP6_DEBUG) += dsp_debug.o
 obj-y += audio_acdb.o
 ifdef CONFIG_ARCH_MSM9615
 obj-y += rtac.o

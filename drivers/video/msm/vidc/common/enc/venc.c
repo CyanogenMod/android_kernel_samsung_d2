@@ -37,13 +37,13 @@
 #define VID_ENC_NAME	"msm_vidc_enc"
 static char *node_name[2] = {"", "_sec"};
 
-#if DEBUG
+#ifdef DEBUG
 #define DBG(x...) printk(KERN_DEBUG x)
 #else
 #define DBG(x...)
 #endif
 
-#define INFO(x...) printk(KERN_INFO x)
+#define INFO(x...)
 #define ERR(x...) printk(KERN_ERR x)
 
 static struct vid_enc_dev *vid_enc_device_p;

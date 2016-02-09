@@ -124,6 +124,7 @@
 #define AVTIMER_MSW_PHYSICAL_ADDRESS 0x2800900C
 #define AVTIMER_LSW_PHYSICAL_ADDRESS 0x28009008
 
+#if 0
 static struct resource msm8960_resources_pccntr[] = {
 	{
 		.start	= MSM8960_PC_CNTR_PHYS,
@@ -138,6 +139,7 @@ struct platform_device msm8960_pc_cntr = {
 	.num_resources	= ARRAY_SIZE(msm8960_resources_pccntr),
 	.resource	= msm8960_resources_pccntr,
 };
+#endif
 
 static struct resource resources_otg[] = {
 	{
@@ -210,6 +212,7 @@ struct platform_device msm_device_hsusb_host = {
 	},
 };
 
+#ifdef CONFIG_USB_EHCI_MSM_HSIC
 static struct resource resources_hsic_host[] = {
 	{
 		.start	= 0x12520000,
@@ -239,6 +242,7 @@ struct platform_device msm_device_hsic_host = {
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
 	},
 };
+#endif
 
 struct platform_device msm8960_device_acpuclk = {
 	.name		= "acpuclk-8960",
@@ -250,6 +254,7 @@ struct platform_device msm8960ab_device_acpuclk = {
 	.id		= -1,
 };
 
+#ifdef CONFIG_MSM_TZ_LOG
 #define SHARED_IMEM_TZ_BASE 0x2a03f720
 static struct resource tzlog_resources[] = {
 	{
@@ -265,7 +270,9 @@ struct platform_device msm_device_tz_log = {
 	.num_resources	= ARRAY_SIZE(tzlog_resources),
 	.resource	= tzlog_resources,
 };
+#endif
 
+#if 0
 static struct resource resources_uart_gsbi2[] = {
 	{
 		.start	= MSM8960_GSBI2_UARTDM_IRQ,
@@ -292,6 +299,8 @@ struct platform_device msm8960_device_uart_gsbi2 = {
 	.num_resources	= ARRAY_SIZE(resources_uart_gsbi2),
 	.resource	= resources_uart_gsbi2,
 };
+#endif
+
 #ifdef CONFIG_FELICA
 static struct resource resources_uart_gsbi4[] = {
 	{
@@ -319,8 +328,8 @@ struct platform_device msm8960_device_uart_gsbi4 = {
 	.num_resources	= ARRAY_SIZE(resources_uart_gsbi4),
 	.resource	= resources_uart_gsbi4,
 };
-
 #endif /* CONFIG_FELICA */
+
 /* GSBI 6 used into UARTDM Mode */
 static struct resource msm_uart_dm6_resources[] = {
 	{
@@ -365,6 +374,7 @@ struct platform_device msm_device_uart_dm6 = {
 	},
 };
 
+#if 0
 /* GSBI 8 used into UARTDM Mode */
 static struct resource msm_uart_dm8_resources[] = {
 	{
@@ -456,6 +466,7 @@ struct platform_device msm_device_uart_dm9 = {
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
 	},
 };
+#endif
 
 /* GSBI10 used for serial console on 8930 SGLTE*/
 static struct msm_serial_hslite_platform_data uart_gsbi10_pdata;
@@ -2310,6 +2321,7 @@ struct platform_device msm8960_device_vpe = {
 };
 #endif
 
+#ifdef CONFIG_TSIF
 #define MSM_TSIF0_PHYS       (0x18200000)
 #define MSM_TSIF1_PHYS       (0x18201000)
 #define MSM_TSIF_SIZE        (0x200)
@@ -2414,6 +2426,7 @@ struct platform_device msm_device_tsif[2] = {
 		},
 	}
 };
+#endif
 
 static struct resource resources_ssbi_pmic[] = {
 	{
@@ -3343,8 +3356,11 @@ struct platform_device msm_slim_ctrl = {
 static struct msm_dcvs_freq_entry grp3d_freq[] = {
 	{0, 900, 0, 0, 0},
 	{0, 950, 0, 0, 0},
-	{0, 950, 0, 0, 0},
-	{0, 1200, 1, 100, 100},
+	{0, 950, 0, 50, 50},
+	{0, 1100, 0, 100, 100},
+	{0, 1100, 0, 100, 100},
+	{0, 1150, 1, 125, 125},
+	{0, 1200, 1, 175, 175},
 };
 
 static struct msm_dcvs_freq_entry grp2d_freq[] = {
@@ -3641,6 +3657,21 @@ static struct kgsl_device_iommu_data kgsl_3d0_iommu_data[] = {
 static struct kgsl_device_platform_data kgsl_3d0_pdata = {
 	.pwrlevel = {
 		{
+			.gpu_freq = 600000000,
+			.bus_freq = 4,
+			.io_fraction = 0,
+		},
+		{
+			.gpu_freq = 533333000,
+			.bus_freq = 4,
+			.io_fraction = 0,
+		},
+		{
+			.gpu_freq = 480000000,
+			.bus_freq = 4,
+			.io_fraction = 0,
+		},
+		{
 			.gpu_freq = 400000000,
 			.bus_freq = 4,
 			.io_fraction = 0,
@@ -3665,7 +3696,7 @@ static struct kgsl_device_platform_data kgsl_3d0_pdata = {
 			.bus_freq = 0,
 		},
 	},
-	.init_level = 1,
+	.init_level = 4,
 	.num_levels = ARRAY_SIZE(grp3d_freq) + 1,
 	.set_grp_async = NULL,
 	.idle_timeout = HZ/12,
@@ -4167,6 +4198,7 @@ struct platform_device msm8960_rpm_device = {
 	.id     = -1,
 };
 
+#ifdef CONFIG_MSM_RPM_LOG
 static struct msm_rpm_log_platform_data msm_rpm_log_pdata = {
 	.phys_addr_base = 0x0010C000,
 	.reg_offsets = {
@@ -4185,7 +4217,9 @@ struct platform_device msm8960_rpm_log_device = {
 		.platform_data = &msm_rpm_log_pdata,
 	},
 };
+#endif
 
+#ifdef CONFIG_MSM_RPM_STATS_LOG
 static struct msm_rpmstats_platform_data msm_rpm_stat_pdata = {
 	.phys_addr_base = 0x0010DD04,
 	.phys_size = SZ_256,
@@ -4229,6 +4263,7 @@ struct platform_device msm8960_rpm_master_stat_device = {
 		.platform_data = &msm_rpm_master_stat_pdata,
 	},
 };
+#endif
 
 struct platform_device msm_bus_sys_fabric = {
 	.name  = "msm_bus_fabric",
@@ -4322,6 +4357,7 @@ struct platform_device msm_dsps_device = {
 
 #endif /* CONFIG_MSM_DSPS */
 
+#ifdef CONFIG_CORESIGHT_ETM
 #define CORESIGHT_PHYS_BASE		0x01A00000
 #define CORESIGHT_TPIU_PHYS_BASE	(CORESIGHT_PHYS_BASE + 0x3000)
 #define CORESIGHT_ETB_PHYS_BASE		(CORESIGHT_PHYS_BASE + 0x1000)
@@ -4515,6 +4551,7 @@ struct platform_device coresight_etm1_device = {
 		.platform_data = &coresight_etm1_pdata,
 	},
 };
+#endif
 
 static struct resource msm_ebi1_ch0_erp_resources[] = {
 	{
@@ -4732,6 +4769,7 @@ struct platform_device msm8960_iommu_domain_device = {
 	}
 };
 
+#ifdef CONFIG_MSM_RTB
 struct msm_rtb_platform_data msm8960_rtb_pdata = {
 	.size = SZ_1M,
 };
@@ -4754,7 +4792,9 @@ struct platform_device msm8960_rtb_device = {
 		.platform_data = &msm8960_rtb_pdata,
 	},
 };
+#endif
 
+#ifdef CONFIG_MSM_CACHE_DUMP
 #define MSM_8960_L1_SIZE  SZ_1M
 /*
  * The actual L2 size is smaller but we need a larger buffer
@@ -4774,6 +4814,7 @@ struct platform_device msm8960_cache_dump_device = {
 		.platform_data = &msm8960_cache_dump_pdata,
 	},
 };
+#endif
 
 struct dev_avtimer_data dev_avtimer_pdata = {
 	.avtimer_msw_phy_addr = AVTIMER_MSW_PHYSICAL_ADDRESS,
@@ -4880,6 +4921,12 @@ static struct persistent_ram_descriptor pram_descs[] = {
 		.size = RAM_CONSOLE_SIZE,
 	},
 #endif
+#ifdef CONFIG_PERSIST_ENTROPY
+	{
+		.name = "persist_entropy",
+		.size = SZ_4K,
+	},
+#endif
 };
 
 static struct persistent_ram msm8960_persistent_ram = {
@@ -4907,3 +4954,14 @@ void __init add_ramconsole_devices(void)
 }
 #endif /* CONFIG_ANDROID_RAM_CONSOLE */
 
+#ifdef CONFIG_PERSIST_ENTROPY
+static struct platform_device persistent_entropy_device = {
+	.name = "persist_entropy",
+	.id = -1,
+};
+
+void __init add_persistent_entropy_devices(void)
+{
+	platform_device_register(&persistent_entropy_device);
+}
+#endif

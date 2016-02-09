@@ -82,8 +82,6 @@ struct semaphore mdp_pipe_ctrl_mutex;
 unsigned long mdp_timer_duration = (HZ/20);   /* 50 msecond */
 
 boolean mdp_ppp_waiting = FALSE;
-uint32 mdp_tv_underflow_cnt;
-uint32 mdp_lcdc_underflow_cnt;
 
 boolean mdp_current_clk_on = FALSE;
 boolean mdp_is_in_isr = FALSE;
@@ -101,8 +99,6 @@ uint32 mdp_intr_mask = MDP4_ANY_INTR_MASK;
 #else
 uint32 mdp_intr_mask = MDP_ANY_INTR_MASK;
 #endif
-
-MDP_BLOCK_TYPE mdp_debug[MDP_MAX_BLOCK];
 
 atomic_t mdp_block_power_cnt[MDP_MAX_BLOCK];
 
@@ -1700,9 +1696,6 @@ void mdp_pipe_kickoff(uint32 term, struct msm_fb_data_type *mfd)
 
 	/* kick off PPP engine */
 	if (term == MDP_PPP_TERM) {
-		if (mdp_debug[MDP_PPP_BLOCK])
-			jiffies_to_timeval(jiffies, &mdp_ppp_timeval);
-
 		/* let's turn on PPP block */
 		mdp_pipe_ctrl(MDP_PPP_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
 
@@ -1715,21 +1708,7 @@ void mdp_pipe_kickoff(uint32 term, struct msm_fb_data_type *mfd)
 		wait_for_completion_killable(&mdp_ppp_comp);
 		mdp_disable_irq(term);
 
-		if (mdp_debug[MDP_PPP_BLOCK]) {
-			struct timeval now;
-
-			jiffies_to_timeval(jiffies, &now);
-			mdp_ppp_timeval.tv_usec =
-			    now.tv_usec - mdp_ppp_timeval.tv_usec;
-			MSM_FB_DEBUG("MDP-PPP: %d\n",
-				    (int)mdp_ppp_timeval.tv_usec);
-		}
 	} else if (term == MDP_DMA2_TERM) {
-		if (mdp_debug[MDP_DMA2_BLOCK]) {
-			MSM_FB_DEBUG("MDP-DMA2: %d\n",
-				    (int)mdp_dma2_timeval.tv_usec);
-			jiffies_to_timeval(jiffies, &mdp_dma2_timeval);
-		}
 		/* DMA update timestamp */
 		mdp_dma2_last_update_time = ktime_get_real();
 		/* let's turn on DMA2 block */
@@ -2066,7 +2045,6 @@ irqreturn_t mdp_isr(int irq, void *ptr)
 
 	if (mdp_interrupt & TV_ENC_UNDERRUN) {
 		mdp_interrupt &= ~(TV_ENC_UNDERRUN);
-		mdp_tv_underflow_cnt++;
 	}
 
 	if (!mdp_interrupt)
@@ -2117,7 +2095,6 @@ irqreturn_t mdp_isr(int irq, void *ptr)
 
 		/* LCDC UnderFlow */
 		if (mdp_interrupt & LCDC_UNDERFLOW) {
-			mdp_lcdc_underflow_cnt++;
 			/*when underflow happens HW resets all the histogram
 			  registers that were set before so restore them back
 			  to normal.*/
@@ -2182,11 +2159,6 @@ irqreturn_t mdp_isr(int irq, void *ptr)
 
 		mdp_dma2_last_update_time = ktime_sub(ktime_get_real(),
 			mdp_dma2_last_update_time);
-		if (mdp_debug[MDP_DMA2_BLOCK]) {
-			jiffies_to_timeval(jiffies, &now);
-			mdp_dma2_timeval.tv_usec =
-			    now.tv_usec - mdp_dma2_timeval.tv_usec;
-		}
 #ifndef CONFIG_FB_MSM_MDP303
 		dma = &dma2_data;
 		spin_lock_irqsave(&mdp_spin_lock, flag);
@@ -2231,10 +2203,6 @@ mdp_is_in_isr = FALSE;
 static void mdp_drv_init(void)
 {
 	int i;
-
-	for (i = 0; i < MDP_MAX_BLOCK; i++) {
-		mdp_debug[i] = 0;
-	}
 
 	/* initialize spin lock and workqueue */
 	spin_lock_init(&mdp_spin_lock);

@@ -15,9 +15,7 @@ struct smb347_platform_data {
 	int (*chg_intr_trigger) (int);
 	int enable;
 	int stat;
-	int (*smb347_using) (void);
 	unsigned int inok;
-	int (*smb347_inok_using) (void);
 #ifdef CONFIG_WIRELESS_CHARGING
 	void (*smb347_wpc_cb) (void);
 #endif

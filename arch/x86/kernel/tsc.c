@@ -39,7 +39,7 @@ int tsc_clocksource_reliable;
 /*
  * Scheduler clock - returns current time in nanosec units.
  */
-u64 native_sched_clock(void)
+__visible u64 native_sched_clock(void)
 {
 	u64 this_offset;
 
@@ -65,15 +65,14 @@ u64 native_sched_clock(void)
 
 /* We need to define a real function for sched_clock, to override the
    weak default version */
-#ifdef CONFIG_PARAVIRT
 unsigned long long sched_clock(void)
 {
+#ifdef CONFIG_PARAVIRT
 	return paravirt_sched_clock();
-}
 #else
-unsigned long long
-sched_clock(void) __attribute__((alias("native_sched_clock")));
+	return native_sched_clock();
 #endif
+}
 
 int check_tsc_unstable(void)
 {

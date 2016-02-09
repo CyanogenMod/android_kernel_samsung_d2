@@ -38,6 +38,11 @@ config ANDROID_RAM_CONSOLE
 	select ANDROID_PERSISTENT_RAM
 	default n
 
+config PERSIST_ENTROPY
+	bool "Save entropy across reboots"
+	select ANDROID_PERSISTENT_RAM
+	default n
+
 config PERSISTENT_TRACER
 	bool "Persistent function tracer"
 	depends on HAVE_FUNCTION_TRACER

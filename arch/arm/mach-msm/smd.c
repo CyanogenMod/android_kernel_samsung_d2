@@ -188,9 +188,7 @@ enum {
 	SMSM_APPS_DEM_I = 3,
 };
 
-static int msm_smd_debug_mask;
-module_param_named(debug_mask, msm_smd_debug_mask,
-		   int, S_IRUGO | S_IWUSR | S_IWGRP);
+#define msm_smd_debug_mask (0)
 
 #if defined(CONFIG_MSM_SMD_DEBUG)
 #define SMD_DBG(x...) do {				\
@@ -574,29 +572,9 @@ static struct notifier_block smsm_pm_nb = {
 	.priority = 0,
 };
 
-void smd_diag(void)
-{
-	char *x;
-	int size;
-
-	x = smem_find(ID_DIAG_ERR_MSG, SZ_DIAG_ERR_MSG);
-	if (x != 0) {
-		x[SZ_DIAG_ERR_MSG - 1] = 0;
-		SMD_INFO("smem: DIAG '%s'\n", x);
-	}
-
-	x = smem_get_entry(SMEM_ERR_CRASH_LOG, &size);
-	if (x != 0) {
-		x[size - 1] = 0;
-		pr_err("smem: CRASH LOG\n'%s'\n", x);
-	}
-}
-
-
 static void handle_modem_crash(void)
 {
 	pr_err("MODEM/AMSS has CRASHED\n");
-	smd_diag();
 
 	/* hard reboot if possible FIXME
 	if (msm_reset_hook)

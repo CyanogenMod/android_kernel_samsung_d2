@@ -331,7 +331,7 @@ typedef float64 float_t;
 #endif /* USE_TYPEDEF_DEFAULTS */
 
 /* Suppress unused parameter warning */
-#define UNUSED_PARAMETER(x) (void)(x)
+#define UNUSED_PARAMETER(x) do { } while (0)
 
 /* Avoid warning for discarded const or volatile qualifier in special cases (-Wcast-qual) */
 #define DISCARD_QUAL(ptr, type) ((type *)(uintptr)(ptr))

@@ -27,6 +27,7 @@
 #include <linux/cpumask.h>
 #include <linux/sched.h>
 #include <linux/suspend.h>
+#include <linux/slab.h>
 #include <trace/events/power.h>
 #include <mach/socinfo.h>
 #include <mach/cpufreq.h>
@@ -168,7 +169,7 @@ static inline int msm_cpufreq_limits_init(void)
 
 	for_each_possible_cpu(cpu) {
 		limit = &per_cpu(cpu_freq_info, cpu);
-		table = cpufreq_frequency_get_table(cpu);
+		table = acpuclk_get_full_freq_table(cpu);
 		if (table == NULL) {
 			pr_err("%s: error reading cpufreq table for cpu %d\n",
 					__func__, cpu);
@@ -180,6 +181,7 @@ static inline int msm_cpufreq_limits_init(void)
 			if (table[i].frequency < min)
 				min = table[i].frequency;
 		}
+		kfree(table);
 		limit->allowed_min = min;
 		limit->allowed_max = max;
 		limit->min = min;
@@ -239,11 +241,11 @@ static int __cpuinit msm_cpufreq_init(struct cpufreq_policy *policy)
 #ifdef CONFIG_MSM_CPU_FREQ_SET_MIN_MAX
 		policy->cpuinfo.min_freq = CONFIG_MSM_CPU_FREQ_MIN;
 		policy->cpuinfo.max_freq = CONFIG_MSM_CPU_FREQ_MAX;
-#endif
 	}
-#ifdef CONFIG_MSM_CPU_FREQ_SET_MIN_MAX
 	policy->min = CONFIG_MSM_CPU_FREQ_MIN;
 	policy->max = CONFIG_MSM_CPU_FREQ_MAX;
+#else
+	}
 #endif
 
 	cur_freq = acpuclk_get_rate(policy->cpu);
@@ -268,6 +270,9 @@ static int __cpuinit msm_cpufreq_init(struct cpufreq_policy *policy)
 	}
 
 	policy->cur = cur_freq;
+#ifndef CONFIG_MSM_CPU_FREQ_SET_MIN_MAX
+	policy->min = 384000;
+#endif
 
 	policy->cpuinfo.transition_latency =
 		acpuclk_get_switch_time() * NSEC_PER_USEC;

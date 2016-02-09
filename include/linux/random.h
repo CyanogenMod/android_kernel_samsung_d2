@@ -51,15 +51,19 @@ struct rnd_state {
 extern void add_device_randomness(const void *, unsigned int);
 extern void add_input_randomness(unsigned int type, unsigned int code,
 				 unsigned int value);
-extern void add_interrupt_randomness(int irq, int irq_flags);
 
 extern void get_random_bytes(void *buf, int nbytes);
+#ifdef CONFIG_ISAAC_RANDOM
+extern void isaac_extract_seed(void *buf, int nbytes);
+#endif
 extern void get_random_bytes_arch(void *buf, int nbytes);
 void generate_random_uuid(unsigned char uuid_out[16]);
-extern int random_int_secret_init(void);
 
 #ifndef MODULE
 extern const struct file_operations random_fops, urandom_fops;
+#ifdef CONFIG_ISAAC
+extern const struct file_operations isaac_fops;
+#endif
 #endif
 
 unsigned int get_random_int(void);
@@ -95,6 +99,10 @@ static inline void prandom32_seed(struct rnd_state *state, u64 seed)
 #ifdef CONFIG_ARCH_RANDOM
 # include <asm/archrandom.h>
 #else
+#ifdef CONFIG_ARCH_RANDOM_HWRNG
+extern int arch_get_random_long(unsigned long *v);
+extern int arch_get_random_int(unsigned int *v);
+#else
 static inline int arch_get_random_long(unsigned long *v)
 {
 	return 0;
@@ -103,6 +111,7 @@ static inline int arch_get_random_int(unsigned int *v)
 {
 	return 0;
 }
+#endif
 #endif
 
 #endif /* __KERNEL___ */

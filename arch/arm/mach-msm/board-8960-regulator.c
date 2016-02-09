@@ -540,9 +540,9 @@ struct gpio_regulator_platform_data msm_gpio_regulator_pdata[] __devinitdata = {
 /* SAW regulator constraints */
 struct regulator_init_data msm_saw_regulator_pdata_s5 =
 	/*	      ID  vreg_name	       min_uV   max_uV */
-	SAW_VREG_INIT(S5, "8921_s5",	       850000, 1300000);
+	SAW_VREG_INIT(S5, "8921_s5",	       600000, 1400000);
 struct regulator_init_data msm_saw_regulator_pdata_s6 =
-	SAW_VREG_INIT(S6, "8921_s6",	       850000, 1300000);
+	SAW_VREG_INIT(S6, "8921_s6",	       600000, 1400000);
 
 /* PM8921 regulator constraints */
 struct pm8xxx_regulator_platform_data
@@ -606,7 +606,7 @@ msm_rpm_regulator_init_data[] __devinitdata = {
 	RPM_LDO(L8,	 0, 1, 0, 2800000, 3000000, NULL,      0, 0),
 	RPM_LDO(L9,	 0, 1, 0, 3000000, 3000000, NULL,      0, 0),
 #endif
-	RPM_LDO(L10,	 0, 1, 0, 3000000, 3000000, NULL,      0, 0),
+	RPM_LDO(L10,	 0, 1, 0,  750000, 3000000, NULL,      0, 0),
 #if defined(CONFIG_MACH_M2) || defined(CONFIG_MACH_APEXQ) || defined(CONFIG_MACH_EXPRESS) || defined(CONFIG_MACH_ESPRESSO_VZW) || defined(CONFIG_MACH_M2_DCM) || defined(CONFIG_MACH_COMANCHE)
 	RPM_LDO(L11,	 0, 1, 0, 2800000, 3300000, NULL,      0, 0),
 #else

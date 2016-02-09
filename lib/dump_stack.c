@@ -6,6 +6,7 @@
 #include <linux/kernel.h>
 #include <linux/export.h>
 
+void dump_stack(void) __attribute__ ((weak));
 void dump_stack(void)
 {
 	printk(KERN_NOTICE

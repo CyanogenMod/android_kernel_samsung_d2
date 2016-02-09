@@ -96,6 +96,11 @@ static inline bool aca_enabled(void)
 #endif
 }
 
+int __devinit msm_otg_is_probed(void)
+{
+	return the_msm_otg != NULL;
+}
+
 static const int vdd_val[VDD_TYPE_MAX][VDD_VAL_MAX] = {
 		{  /* VDD_CX CORNER Voting */
 			[VDD_NONE]	= RPM_VREG_CORNER_NONE,
@@ -1094,6 +1099,9 @@ skip_phy_resume:
 }
 #endif
 
+/* Currently commented out below. */
+static int msm_otg_notify_host_mode(struct msm_otg *motg, bool host_mode)
+	__attribute__((unused));
 static int msm_otg_notify_host_mode(struct msm_otg *motg, bool host_mode)
 {
 	int ret;
@@ -1375,7 +1383,7 @@ out:
 
 static void msm_hsusb_vbus_power(struct msm_otg *motg, bool on)
 {
-	int ret;
+	//int ret;
 	static bool vbus_is_on;
 
 	if (vbus_is_on == on)
@@ -1383,7 +1391,7 @@ static void msm_hsusb_vbus_power(struct msm_otg *motg, bool on)
 
 	if (motg->pdata->vbus_power) {
 		if (!motg->smartdock) {
-			ret = motg->pdata->vbus_power(on);
+			int ret = motg->pdata->vbus_power(on);
 			if (!ret)
 				vbus_is_on = on;
 #ifdef CONFIG_USB_HOST_NOTIFY
@@ -1395,6 +1403,7 @@ static void msm_hsusb_vbus_power(struct msm_otg *motg, bool on)
 		return;
 	}
 
+#if 0
 	if (!vbus_otg) {
 		pr_err("vbus_otg is NULL.");
 		return;
@@ -1423,6 +1432,7 @@ static void msm_hsusb_vbus_power(struct msm_otg *motg, bool on)
 		msm_otg_notify_host_mode(motg, on);
 		vbus_is_on = false;
 	}
+#endif
 }
 
 #ifdef CONFIG_USB_HOST_NOTIFY

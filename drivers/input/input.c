@@ -53,6 +53,7 @@ static inline int is_event_supported(unsigned int code,
 	return code <= max && test_bit(code, bm);
 }
 
+/*
 static int input_defuzz_abs_event(int value, int old_val, int fuzz)
 {
 	if (fuzz) {
@@ -68,6 +69,7 @@ static int input_defuzz_abs_event(int value, int old_val, int fuzz)
 
 	return value;
 }
+*/
 
 /*
  * Pass event first through all filters and then, if event has not been
@@ -196,8 +198,10 @@ static int input_handle_abs_event(struct input_dev *dev,
 	}
 
 	if (pold) {
+		/*
 		*pval = input_defuzz_abs_event(*pval, *pold,
 						dev->absinfo[code].fuzz);
+		*/
 		if (*pold == *pval)
 			return INPUT_IGNORE_EVENT;
 
@@ -224,6 +228,7 @@ static void input_handle_event(struct input_dev *dev,
 		switch (code) {
 		case SYN_CONFIG:
 			disposition = INPUT_PASS_TO_ALL;
+			break;
 		case SYN_TIME_SEC:
 		case SYN_TIME_NSEC:
 			dev->sync = false;
@@ -269,8 +274,16 @@ static void input_handle_event(struct input_dev *dev,
 		break;
 
 	case EV_ABS:
-		if (is_event_supported(code, dev->absbit, ABS_MAX))
+		if (is_event_supported(code, dev->absbit, ABS_MAX)) {
 			disposition = input_handle_abs_event(dev, code, &value);
+			/* Non-portable hack: clamp value to 0..255 */
+			if (code == ABS_MT_POSITION_X)
+				add_input_randomness(type, code,
+					value * 16 / 45);
+			else if (code == ABS_MT_POSITION_Y)
+				add_input_randomness(type, code,
+					value / 5);
+		}
 
 		break;
 
@@ -356,12 +369,28 @@ void input_event(struct input_dev *dev,
 	if (is_event_supported(type, dev->evbit, EV_MAX)) {
 
 		spin_lock_irqsave(&dev->event_lock, flags);
-		add_input_randomness(type, code, value);
+		//add_input_randomness(type, code, value);
 		input_handle_event(dev, type, code, value);
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 	}
 }
 EXPORT_SYMBOL(input_event);
+
+void input_event_list(struct input_dev *dev,
+		      struct input_event_list *list)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev->event_lock, flags);
+	while (list->type != EV_CNT) {
+		if (is_event_supported(list->type, dev->evbit, EV_MAX))
+			input_handle_event(dev, list->type,
+					   list->code, list->value);
+		list++;
+	}
+	spin_unlock_irqrestore(&dev->event_lock, flags);
+}
+EXPORT_SYMBOL(input_event_list);
 
 /**
  * input_inject_event() - send input event from input handler

@@ -868,10 +868,7 @@ static int __devinit max17040_probe(struct i2c_client *client,
 	max17040_get_version(client);
 	chip->rcomp = max17040_get_rcomp(client);
 
-	if (chip->pdata->check_batt_type)
-		chip->batt_type = chip->pdata->check_batt_type();
-	else
-		chip->batt_type = BATT_TYPE_NORMAL;
+	chip->batt_type = BATT_TYPE_D2_ACTIVE;
 
 	if (chip->batt_type) {
 		chip->pdata->rcomp_value = chip->rcomp;

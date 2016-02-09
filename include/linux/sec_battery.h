@@ -26,8 +26,6 @@ struct sec_bat_platform_data {
 	char *fuel_gauge_name;
 	char *charger_name;
 	int (*get_cable_type) (void);
-	int (*sec_battery_using) (void);
-	int (*check_batt_type) (void);
 	unsigned int iterm;
 	unsigned int charge_duration;
 	unsigned int wpc_charge_duration;

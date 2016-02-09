@@ -681,12 +681,6 @@ static int smb347_chg_get_property(struct power_supply *psy,
 		break;
 #ifdef CONFIG_WIRELESS_CHARGING
 	case POWER_SUPPLY_PROP_WIRELESS_CHARGING:
-		if (!chip->pdata->smb347_inok_using ||
-			(chip->pdata->smb347_inok_using &&
-			!chip->pdata->smb347_inok_using())) {
-			pr_err("%s : skip checking inok\n", __func__);
-			return -EINVAL;
-		}
 		val->intval = smb347_get_current_input_source(chip->client);
 		break;
 #endif
@@ -1654,11 +1648,6 @@ static int __devinit smb347_probe(struct i2c_client *client,
 		goto err_kfree;
 	}
 
-	if (!chip->pdata->smb347_using()) {
-		pr_info("%s: SMB347 driver Loading SKIP!!!\n", __func__);
-		ret = -EINVAL;
-		goto err_kfree;
-	}
 	check_smb347_version();
 	pr_info("%s: SMB347 driver Loading!\n", __func__);
 
@@ -1713,30 +1702,26 @@ static int __devinit smb347_probe(struct i2c_client *client,
 		       __func__);
 		goto err_irq_wake;
 	}
-	if (chip->pdata->smb347_inok_using) {
-		if (chip->pdata->smb347_inok_using()) {
-			ret = request_threaded_irq(
-				MSM_GPIO_TO_INT(chip->pdata->inok),
-				NULL,
-				smb347_inok_work_func,
-				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
-				"smb347 inok",
-				chip);
+	ret = request_threaded_irq(
+		MSM_GPIO_TO_INT(chip->pdata->inok),
+		NULL,
+		smb347_inok_work_func,
+		IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+		"smb347 inok",
+		chip);
 
-			if (ret) {
-				pr_err("%s : Failed to request smb347 charger inok irq\n",
-					__func__);
-				goto err_irq_wake;
-			}
+	if (ret) {
+		pr_err("%s : Failed to request smb347 charger inok irq\n",
+			__func__);
+		goto err_irq_wake;
+	}
 
-			ret = enable_irq_wake(
-				MSM_GPIO_TO_INT(chip->pdata->inok));
-			if (ret) {
-				pr_err("%s : Failed to enable smb347 charger inok irq wake\n",
-					   __func__);
-				goto err_irq_wake2;
-			}
-		}
+	ret = enable_irq_wake(
+		MSM_GPIO_TO_INT(chip->pdata->inok));
+	if (ret) {
+		pr_err("%s : Failed to enable smb347 charger inok irq wake\n",
+			   __func__);
+		goto err_irq_wake2;
 	}
 
 #ifdef CONFIG_WIRELESS_CHARGING

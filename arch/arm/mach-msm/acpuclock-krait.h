@@ -50,13 +50,13 @@ enum pvs {
 	PVS_NOMINAL = 1,
 	PVS_FAST = 3,
 	PVS_FASTER = 4,
-	NUM_PVS = 7
+	NUM_PVS
 };
 
 /**
  * The maximum number of speed bins.
  */
-#define NUM_SPEED_BINS (16)
+#define NUM_SPEED_BINS (1)
 
 /**
  * enum scalables - IDs of frequency scalable hardware blocks.
@@ -104,7 +104,7 @@ enum vregs {
  */
 struct vreg {
 	const char *name;
-	const int max_vdd;
+	int max_vdd;
 	struct regulator *reg;
 	struct rpm_regulator *rpm_reg;
 	int cur_vdd;
@@ -136,7 +136,7 @@ struct l2_level {
 	const struct core_speed speed;
 	const int vdd_dig;
 	const int vdd_mem;
-	const unsigned int bw_level;
+	unsigned int bw_level;
 };
 
 /**
@@ -149,7 +149,7 @@ struct l2_level {
  * @avsdscr_setting: AVS DSCR configuration.
  */
 struct acpu_level {
-	const int use_for_scaling;
+	int use_for_scaling;
 	const struct core_speed speed;
 	const unsigned int l2_level;
 	int vdd_core;
@@ -223,6 +223,7 @@ struct scalable {
 	struct vreg vreg[NUM_VREG];
 	bool initialized;
 	bool avs_enabled;
+	unsigned int nom_min_vdd;
 };
 
 /**

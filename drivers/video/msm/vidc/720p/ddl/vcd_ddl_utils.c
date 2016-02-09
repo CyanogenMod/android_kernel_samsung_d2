@@ -15,13 +15,14 @@
 #include "vcd_ddl_utils.h"
 #include "vcd_res_tracker_api.h"
 
-#if DEBUG
+#ifdef DEBUG
 #define DBG(x...) printk(KERN_DEBUG x)
+#define DBG_TIME(x...) printk(KERN_DEBUG x)
 #else
 #define DBG(x...)
+#define DBG_TIME(x...)
 #endif
 
-#define DBG_TIME(x...) printk(KERN_DEBUG x)
 #define ERR(x...) printk(KERN_ERR x)
 
 struct time_data {

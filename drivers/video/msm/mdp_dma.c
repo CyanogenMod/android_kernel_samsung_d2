@@ -46,7 +46,9 @@ int mdp_vsync_usec_wait_line_too_short = 5;
 uint32 mdp_dma2_update_time_in_usec;
 uint32 mdp_total_vdopkts;
 
+#ifdef MSM_FB_ENABLE_DBGFS
 extern u32 msm_fb_debug_enabled;
+#endif
 extern struct workqueue_struct *mdp_dma_wq;
 
 int vsync_start_y_adjust = 4;
@@ -255,9 +257,10 @@ static void mdp_dma2_update_lcd(struct msm_fb_data_type *mfd)
 	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
 }
 
+#ifdef MSM_FB_ENABLE_DBGFS
 static ktime_t vt = { 0 };
+#endif
 int mdp_usec_diff_threshold = 100;
-int mdp_expected_usec_wait;
 
 enum hrtimer_restart mdp_dma2_vsync_hrtimer_handler(struct hrtimer *ht)
 {
@@ -267,6 +270,7 @@ enum hrtimer_restart mdp_dma2_vsync_hrtimer_handler(struct hrtimer *ht)
 
 	mdp_pipe_kickoff(MDP_DMA2_TERM, mfd);
 
+#ifdef MSM_FB_ENABLE_DBGFS
 	if (msm_fb_debug_enabled) {
 		ktime_t t;
 		int usec_diff;
@@ -282,6 +286,7 @@ enum hrtimer_restart mdp_dma2_vsync_hrtimer_handler(struct hrtimer *ht)
 			    ("HRT Diff = %d usec Exp=%d usec  Act=%d usec\n",
 			     usec_diff, mdp_expected_usec_wait, actual_wait);
 	}
+#endif
 
 	return HRTIMER_NORESTART;
 }
@@ -432,10 +437,12 @@ static void mdp_dma_schedule(struct msm_fb_data_type *mfd, uint32 term)
 
 		wait_time = ns_to_ktime(usec_wait_time * 1000);
 
+#ifdef MSM_FB_ENABLE_DBGFS
 		if (msm_fb_debug_enabled) {
 			vt = ktime_get_real();
 			mdp_expected_usec_wait = usec_wait_time;
 		}
+#endif
 		hrtimer_start(&mfd->dma_hrtimer, wait_time, HRTIMER_MODE_REL);
 	}
 }

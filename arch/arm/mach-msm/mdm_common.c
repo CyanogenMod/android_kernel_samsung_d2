@@ -115,8 +115,7 @@ static int disable_boot_timeout = 0;
 static int ssr_count;
 static DEFINE_SPINLOCK(ssr_lock);
 
-static unsigned int mdm_debug_mask;
-int vddmin_gpios_sent;
+#define mdm_debug_mask (0)
 static struct mdm_ops *mdm_ops;
 
 static void mdm_device_list_add(struct mdm_device *mdev)
@@ -309,76 +308,6 @@ static int mdm_driver_queue_notification(char *name,
 			(void *)notif);
 	return ret;
 }
-static irqreturn_t mdm_vddmin_change(int irq, void *dev_id)
-{
-	struct mdm_device *mdev = (struct mdm_device *)dev_id;
-	struct mdm_vddmin_resource *vddmin_res;
-	int value;
-
-	if (!mdev)
-		goto handled;
-
-	vddmin_res = mdev->mdm_data.pdata->vddmin_resource;
-	if (!vddmin_res)
-		goto handled;
-
-	value = gpio_get_value(
-	   vddmin_res->mdm2ap_vddmin_gpio);
-	if (value == 0)
-		pr_info("External Modem id %d entered Vddmin\n",
-				mdev->mdm_data.device_id);
-	else
-		pr_info("External Modem id %d exited Vddmin\n",
-				mdev->mdm_data.device_id);
-handled:
-	return IRQ_HANDLED;
-}
-
-/* The vddmin_res resource may not be supported by some platforms. */
-static void mdm_setup_vddmin_gpios(void)
-{
-	unsigned long flags;
-	struct msm_rpm_iv_pair req;
-	struct mdm_device *mdev;
-	struct mdm_vddmin_resource *vddmin_res;
-	int irq, ret;
-
-	spin_lock_irqsave(&mdm_devices_lock, flags);
-	list_for_each_entry(mdev, &mdm_devices, link) {
-		vddmin_res = mdev->mdm_data.pdata->vddmin_resource;
-		if (!vddmin_res)
-			continue;
-
-		pr_info("Enabling vddmin logging on modem id %d\n",
-				mdev->mdm_data.device_id);
-		req.id = vddmin_res->rpm_id;
-		req.value =
-			((uint32_t)vddmin_res->ap2mdm_vddmin_gpio & 0x0000FFFF)
-						<< 16;
-		req.value |= ((uint32_t)vddmin_res->modes & 0x000000FF) << 8;
-		req.value |= (uint32_t)vddmin_res->drive_strength & 0x000000FF;
-
-		msm_rpm_set(MSM_RPM_CTX_SET_0, &req, 1);
-
-		/* Start monitoring low power gpio from mdm */
-		irq = MSM_GPIO_TO_INT(vddmin_res->mdm2ap_vddmin_gpio);
-		if (irq < 0)
-			pr_err("%s: could not get LPM POWER IRQ resource mdm id %d.\n",
-				   __func__, mdev->mdm_data.device_id);
-		else {
-			ret = request_threaded_irq(irq, NULL, mdm_vddmin_change,
-				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
-				"mdm lpm", mdev);
-
-			if (ret < 0)
-				pr_err("%s: MDM LPM IRQ#%d request failed with error=%d",
-					   __func__, irq, ret);
-		}
-	}
-	spin_unlock_irqrestore(&mdm_devices_lock, flags);
-	return;
-}
-
 static void mdm_restart_reason_fn(struct work_struct *work)
 {
 	int ret, ntries = 0;
@@ -847,47 +776,6 @@ static int mdm_subsys_ramdumps(int want_dumps,
 	return mdm_drv->mdm_ram_dump_status;
 }
 
-/* Once the gpios are sent to RPM and debugging
- * starts, there is no way to stop it without
- * rebooting the device.
- */
-static int mdm_debug_mask_set(void *data, u64 val)
-{
-	if (!vddmin_gpios_sent &&
-		(val & MDM_DEBUG_MASK_VDDMIN_SETUP)) {
-		mdm_setup_vddmin_gpios();
-		vddmin_gpios_sent = 1;
-	}
-
-	mdm_debug_mask = val;
-	if (mdm_ops->debug_state_changed_cb)
-		mdm_ops->debug_state_changed_cb(mdm_debug_mask);
-	return 0;
-}
-
-static int mdm_debug_mask_get(void *data, u64 *val)
-{
-	*val = mdm_debug_mask;
-	return 0;
-}
-
-DEFINE_SIMPLE_ATTRIBUTE(mdm_debug_mask_fops,
-			mdm_debug_mask_get,
-			mdm_debug_mask_set, "%llu\n");
-
-static int mdm_debugfs_init(void)
-{
-	struct dentry *dent;
-
-	dent = debugfs_create_dir("mdm_dbg", 0);
-	if (IS_ERR(dent))
-		return PTR_ERR(dent);
-
-	debugfs_create_file("debug_mask", 0644, dent, NULL,
-			&mdm_debug_mask_fops);
-	return 0;
-}
-
 static const struct file_operations mdm_modem_fops = {
 	.owner		= THIS_MODULE,
 	.open		= mdm_modem_open,
@@ -1292,7 +1180,6 @@ static int __init mdm_modem_init(void)
 		return ret;
 
 	INIT_LIST_HEAD(&mdm_devices);
-	mdm_debugfs_init();
 	return platform_driver_register(&mdm_modem_driver);
 }
 

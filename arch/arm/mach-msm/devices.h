@@ -29,6 +29,7 @@ void __init msm_rotator_update_bus_vectors(unsigned int xres,
 	unsigned int yres);
 void __init msm_rotator_set_split_iommu_domain(void);
 void __init add_ramconsole_devices(void);
+void __init add_persistent_entropy_devices(void);
 void __init add_persistent_ram(void);
 
 extern struct platform_device asoc_msm_pcm;

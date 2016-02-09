@@ -335,16 +335,21 @@ int32_t msm_sensor_get_output_info(struct msm_sensor_ctrl_t *s_ctrl,
 
 int32_t msm_sensor_config(struct msm_sensor_ctrl_t *s_ctrl, void __user *argp)
 {
-	struct sensor_cfg_data cdata;
+	struct sensor_cfg_data *cdata =
+		kmalloc(sizeof(struct sensor_cfg_data), GFP_KERNEL);
 	long   rc = 0;
-	if (copy_from_user(&cdata,
+
+	if (!cdata)
+		return -ENOMEM;
+
+	if (copy_from_user(cdata,
 		(void *)argp,
 		sizeof(struct sensor_cfg_data)))
 		return -EFAULT;
 	mutex_lock(s_ctrl->msm_sensor_mutex);
 	CDBG("msm_sensor_config: cfgtype = %d\n",
-	cdata.cfgtype);
-		switch (cdata.cfgtype) {
+	cdata->cfgtype);
+		switch (cdata->cfgtype) {
 		case CFG_SET_FPS:
 		case CFG_SET_PICT_FPS:
 			if (s_ctrl->func_tbl->
@@ -355,7 +360,7 @@ int32_t msm_sensor_config(struct msm_sensor_ctrl_t *s_ctrl, void __user *argp)
 			rc = s_ctrl->func_tbl->
 				sensor_set_fps(
 				s_ctrl,
-				&(cdata.cfg.fps));
+				&(cdata->cfg.fps));
 			break;
 
 		case CFG_SET_EXP_GAIN:
@@ -368,8 +373,8 @@ int32_t msm_sensor_config(struct msm_sensor_ctrl_t *s_ctrl, void __user *argp)
 				s_ctrl->func_tbl->
 				sensor_write_exp_gain(
 					s_ctrl,
-					cdata.cfg.exp_gain.gain,
-					cdata.cfg.exp_gain.line);
+					cdata->cfg.exp_gain.gain,
+					cdata->cfg.exp_gain.line);
 			break;
 
 		case CFG_SET_PICT_EXP_GAIN:
@@ -382,8 +387,8 @@ int32_t msm_sensor_config(struct msm_sensor_ctrl_t *s_ctrl, void __user *argp)
 				s_ctrl->func_tbl->
 				sensor_write_snapshot_exp_gain(
 					s_ctrl,
-					cdata.cfg.exp_gain.gain,
-					cdata.cfg.exp_gain.line);
+					cdata->cfg.exp_gain.gain,
+					cdata->cfg.exp_gain.line);
 			break;
 
 		case CFG_SET_MODE:
@@ -395,8 +400,8 @@ int32_t msm_sensor_config(struct msm_sensor_ctrl_t *s_ctrl, void __user *argp)
 			rc = s_ctrl->func_tbl->
 				sensor_set_sensor_mode(
 					s_ctrl,
-					cdata.mode,
-					cdata.rs);
+					cdata->mode,
+					cdata->rs);
 			break;
 
 		case CFG_SET_EFFECT:
@@ -411,8 +416,8 @@ int32_t msm_sensor_config(struct msm_sensor_ctrl_t *s_ctrl, void __user *argp)
 			rc = s_ctrl->func_tbl->
 				sensor_mode_init(
 				s_ctrl,
-				cdata.mode,
-				&(cdata.cfg.init_info));
+				cdata->mode,
+				&(cdata->cfg.init_info));
 			break;
 
 		case CFG_GET_OUTPUT_INFO:
@@ -424,10 +429,10 @@ int32_t msm_sensor_config(struct msm_sensor_ctrl_t *s_ctrl, void __user *argp)
 			rc = s_ctrl->func_tbl->
 				sensor_get_output_info(
 				s_ctrl,
-				&cdata.cfg.output_info);
+				&cdata->cfg.output_info);
 
 			if (copy_to_user((void *)argp,
-				&cdata,
+				cdata,
 				sizeof(struct sensor_cfg_data)))
 				rc = -EFAULT;
 			break;
@@ -442,10 +447,10 @@ int32_t msm_sensor_config(struct msm_sensor_ctrl_t *s_ctrl, void __user *argp)
 			rc = s_ctrl->sensor_eeprom_client->
 				func_tbl.eeprom_get_data(
 				s_ctrl->sensor_eeprom_client,
-				&cdata.cfg.eeprom_data);
+				&cdata->cfg.eeprom_data);
 
 			if (copy_to_user((void *)argp,
-				&cdata,
+				cdata,
 				sizeof(struct sensor_eeprom_data_t)))
 				rc = -EFAULT;
 			break;
@@ -456,6 +461,8 @@ int32_t msm_sensor_config(struct msm_sensor_ctrl_t *s_ctrl, void __user *argp)
 		}
 
 	mutex_unlock(s_ctrl->msm_sensor_mutex);
+
+	kfree(cdata);
 
 	return rc;
 }
@@ -562,11 +569,18 @@ int32_t msm_sensor_probe(struct msm_sensor_ctrl_t *s_ctrl,
 		struct msm_sensor_ctrl *s)
 {
 	int rc = 0;
-	rc = i2c_add_driver(s_ctrl->sensor_i2c_driver);
-	if (rc < 0 || s_ctrl->sensor_i2c_client->client == NULL) {
-		rc = -ENOTSUPP;
-		CDBG("I2C add driver failed");
-		goto probe_fail;
+	if (!s_ctrl->sensor_i2c_client->client) {
+		if (s_ctrl->sensor_i2c_driver)
+			rc = i2c_add_driver(s_ctrl->sensor_i2c_driver);
+		if (rc < 0 && rc != -EBUSY) {
+			rc = -ENOTSUPP;
+			CDBG("I2C add driver failed");
+			return rc;
+		}
+		if (!s_ctrl->sensor_i2c_client->client) {
+			pr_warn("%s: still no i2c client, defer\n", __func__);
+			return -EPROBE_DEFER;
+		}
 	}
 
 #if !defined(CONFIG_S5C73M3) && !defined(CONFIG_S5K6A3YX)
@@ -607,14 +621,18 @@ int32_t msm_sensor_probe(struct msm_sensor_ctrl_t *s_ctrl,
 	else
 		s->s_mount_angle = 0;
 
-	goto power_down;
-probe_fail:
-	i2c_del_driver(s_ctrl->sensor_i2c_driver);
-power_down:
 #if !defined(CONFIG_S5C73M3) && !defined(CONFIG_S5K6A3YX)
 	s_ctrl->func_tbl->sensor_power_down(info);
 #endif
 	return rc;
+
+#if !defined(CONFIG_S5C73M3) && !defined(CONFIG_S5K6A3YX)
+probe_fail:
+	s_ctrl->func_tbl->sensor_power_down(info);
+	if (s_ctrl->sensor_i2c_driver)
+		i2c_del_driver(s_ctrl->sensor_i2c_driver);
+	return rc;
+#endif
 }
 
 int32_t msm_sensor_v4l2_probe(struct msm_sensor_ctrl_t *s_ctrl,

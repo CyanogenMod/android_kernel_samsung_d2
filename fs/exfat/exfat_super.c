@@ -77,9 +77,6 @@
 #include <linux/exportfs.h>
 #include <linux/mount.h>
 #include <linux/vfs.h>
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0)
-#include <linux/aio.h>
-#endif
 #include <linux/parser.h>
 #include <linux/uio.h>
 #include <linux/writeback.h>
@@ -1616,17 +1613,12 @@ static inline unsigned long exfat_hash(loff_t i_pos)
 static struct inode *exfat_iget(struct super_block *sb, loff_t i_pos) {
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
 	struct exfat_inode_info *info;
+	struct hlist_node *node;
 	struct hlist_head *head = sbi->inode_hashtable + exfat_hash(i_pos);
 	struct inode *inode = NULL;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,9,0)
-	struct hlist_node *node;
 
 	spin_lock(&sbi->inode_hash_lock);
 	hlist_for_each_entry(info, node, head, i_hash_fat) {
-#else
-	spin_lock(&sbi->inode_hash_lock);
-	hlist_for_each_entry(info, head, i_hash_fat) {
-#endif
 		CHECK_ERR(info->vfs_inode.i_sb != sb);
 
 		if (i_pos != info->i_pos)
@@ -2396,6 +2388,16 @@ static int __init init_exfat_fs(void)
 
 	printk(KERN_INFO "exFAT: FS Version %s\n", EXFAT_VERSION);
 
+#ifndef CONFIG_EXFAT_FS_MODULE
+	err = FsInit();
+	if (err) {
+		if (err == FFS_MEMORYERR)
+			return -ENOMEM;
+		else
+			return -EIO;
+	}
+#endif
+
 	err = exfat_init_inodecache();
 	if (err) return err;
 
@@ -2406,6 +2408,9 @@ static void __exit exit_exfat_fs(void)
 {
 	exfat_destroy_inodecache();
 	unregister_filesystem(&exfat_fs_type);
+#ifndef CONFIG_EXFAT_FS_MODULE
+	FsShutdown();
+#endif
 }
 
 module_init(init_exfat_fs);

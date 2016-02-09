@@ -11,6 +11,8 @@
  *
  */
 
+#ifdef CONFIG_DEBUG_FS
+
 #include <linux/vmalloc.h>
 
 #include "kgsl.h"
@@ -353,6 +355,7 @@ static void adreno_dump_fields(struct kgsl_device *device,
 	}
 }
 
+#if __adreno_is_a3xx
 static void adreno_dump_a3xx(struct kgsl_device *device)
 {
 	unsigned int r1, r2, r3, rbbm_status;
@@ -498,7 +501,8 @@ static void adreno_dump_a3xx(struct kgsl_device *device)
 		adreno_dump_fields(device, "INT_SGNL=", ints, ARRAY_SIZE(ints));
 	}
 }
-
+#endif
+#if __adreno_is_a2xx
 static void adreno_dump_a2xx(struct kgsl_device *device)
 {
 	unsigned int r1, r2, r3, rbbm_status;
@@ -675,6 +679,7 @@ static void adreno_dump_a2xx(struct kgsl_device *device)
 	KGSL_LOG_DUMP(device,
 		"MH_INTERRUPT: MASK = %08X | STATUS   = %08X\n", r1, r2);
 }
+#endif
 
 int adreno_dump(struct kgsl_device *device, int manual)
 {
@@ -703,10 +708,18 @@ int adreno_dump(struct kgsl_device *device, int manual)
 	mb();
 
 	if (device->pm_dump_enable) {
+#if CONFIG_AXXX_REV
+#if __adreno_is_a2xx
+		adreno_dump_a2xx(device);
+#else
+		adreno_dump_a3xx(device);
+#endif
+#else
 		if (adreno_is_a2xx(adreno_dev))
 			adreno_dump_a2xx(device);
 		else if (adreno_is_a3xx(adreno_dev))
 			adreno_dump_a3xx(device);
+#endif
 	}
 
 	kgsl_regread(device, adreno_dev->gpudev->reg_rbbm_status, &rbbm_status);
@@ -881,6 +894,24 @@ int adreno_dump(struct kgsl_device *device, int manual)
 
 	/* Dump the registers if the user asked for it */
 	if (device->pm_regs_enabled) {
+#if CONFIG_AXXX_REV
+#if __adreno_is_a20x
+		adreno_dump_regs(device, a200_registers,
+					a200_registers_count);
+#elif __adreno_is_a225
+		adreno_dump_regs(device, a225_registers,
+					a225_registers_count);
+#elif __adreno_is_a22x
+		adreno_dump_regs(device, a220_registers,
+					a220_registers_count);
+#elif __adreno_is_a330
+		adreno_dump_regs(device, a330_registers,
+					a330_registers_count);
+#elif __adreno_is_a3xx
+		adreno_dump_regs(device, a3xx_registers,
+					a3xx_registers_count);
+#endif
+#else
 		if (adreno_is_a20x(adreno_dev))
 			adreno_dump_regs(device, a200_registers,
 					a200_registers_count);
@@ -898,6 +929,7 @@ int adreno_dump(struct kgsl_device *device, int manual)
 				adreno_dump_regs(device, a330_registers,
 					a330_registers_count);
 		}
+#endif
 	}
 
 error_vfree:
@@ -905,3 +937,4 @@ error_vfree:
 end:
 	return result;
 }
+#endif

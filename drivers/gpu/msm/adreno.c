@@ -148,7 +148,11 @@ static struct adreno_device device_3d0 = {
 #define LONG_IB_DETECT_REG_INDEX_END 5
 
 unsigned int ft_detect_regs[FT_DETECT_REGS_COUNT] = {
+#if __adreno_is_a3xx
 	A3XX_RBBM_STATUS,
+#else
+	0,
+#endif
 	REG_CP_RB_RPTR,   /* LONG_IB_DETECT_REG_INDEX_START */
 	REG_CP_IB1_BASE,
 	REG_CP_IB1_BUFSZ,
@@ -189,6 +193,7 @@ static const struct {
 	   between CPU and GPU for SMMU-v1 programming */
 	unsigned int sync_lock_pfp_ver;
 } adreno_gpulist[] = {
+#if __adreno_is_a20x
 	{ ADRENO_REV_A200, 0, 2, ANY_ID, ANY_ID,
 		"yamato_pm4.fw", "yamato_pfp.fw", &adreno_a2xx_gpudev,
 		512, 384, 3, SZ_256K, NO_VER, NO_VER },
@@ -198,6 +203,8 @@ static const struct {
 	{ ADRENO_REV_A205, 0, 1, 0, ANY_ID,
 		"yamato_pm4.fw", "yamato_pfp.fw", &adreno_a2xx_gpudev,
 		512, 384, 3, SZ_256K, NO_VER, NO_VER },
+#endif
+#if __adreno_is_a220
 	{ ADRENO_REV_A220, 2, 1, ANY_ID, ANY_ID,
 		"leia_pm4_470.fw", "leia_pfp_470.fw", &adreno_a2xx_gpudev,
 		512, 384, 3, SZ_512K, NO_VER, NO_VER },
@@ -205,6 +212,8 @@ static const struct {
 	 * patchlevel 5 (8960v2) needs special pm4 firmware to work around
 	 * a hardware problem.
 	 */
+#endif
+#if __adreno_is_a225
 	{ ADRENO_REV_A225, 2, 2, 0, 5,
 		"a225p5_pm4.fw", "a225_pfp.fw", &adreno_a2xx_gpudev,
 		1536, 768, 3, SZ_512K, NO_VER, NO_VER },
@@ -214,6 +223,8 @@ static const struct {
 	{ ADRENO_REV_A225, 2, 2, ANY_ID, ANY_ID,
 		"a225_pm4.fw", "a225_pfp.fw", &adreno_a2xx_gpudev,
 		1536, 768, 3, SZ_512K, 0x225011, 0x225002 },
+#endif
+#if __adreno_is_a3xx
 	/* A3XX doesn't use the pix_shader_start */
 	{ ADRENO_REV_A305, 3, 0, 5, ANY_ID,
 		"a300_pm4.fw", "a300_pfp.fw", &adreno_a3xx_gpudev,
@@ -225,6 +236,7 @@ static const struct {
 	{ ADRENO_REV_A330, 3, 3, 0, ANY_ID,
 		"a330_pm4.fw", "a330_pfp.fw", &adreno_a3xx_gpudev,
 		512, 0, 2, SZ_1M, NO_VER, NO_VER },
+#endif
 };
 
 static unsigned int adreno_isidle(struct kgsl_device *device);
@@ -637,8 +649,11 @@ static bool adreno_use_default_setstate(struct adreno_device *adreno_dev)
 {
 	return (adreno_isidle(&adreno_dev->dev) ||
 			KGSL_STATE_ACTIVE != adreno_dev->dev.state ||
-			adreno_dev->dev.active_cnt == 0 ||
-			kgsl_cff_dump_enable);
+			adreno_dev->dev.active_cnt == 0
+#ifdef CONFIG_MSM_KGSL_CFF_DUMP
+			|| kgsl_cff_dump_enable
+#endif
+			);
 }
 
 static void adreno_iommu_setstate(struct kgsl_device *device,
@@ -920,6 +935,7 @@ static void adreno_setstate(struct kgsl_device *device,
 		return adreno_iommu_setstate(device, context_id, flags);
 }
 
+#if __adreno_is_a3xx
 static unsigned int
 a3xx_getchipid(struct kgsl_device *device)
 {
@@ -934,7 +950,9 @@ a3xx_getchipid(struct kgsl_device *device)
 
 	return pdata->chipid;
 }
+#endif
 
+#if __adreno_is_a2xx
 static unsigned int
 a2xx_getchipid(struct kgsl_device *device)
 {
@@ -978,22 +996,33 @@ a2xx_getchipid(struct kgsl_device *device)
 
 	return chipid;
 }
+#endif
 
 static unsigned int
 adreno_getchipid(struct kgsl_device *device)
 {
+#if !CONFIG_AXXX_REV
 	struct kgsl_device_platform_data *pdata =
 		kgsl_device_get_drvdata(device);
+#endif
 
 	/*
 	 * All A3XX chipsets will have pdata set, so assume !pdata->chipid is
 	 * an A2XX processor
 	 */
 
+#if CONFIG_AXXX_REV
+#if __adreno_is_a3xx
+	return a3xx_getchipid(device);
+#else
+	return a2xx_getchipid(device);
+#endif
+#else
 	if (pdata->chipid == 0 || ADRENO_CHIPID_MAJOR(pdata->chipid) == 2)
 		return a2xx_getchipid(device);
 	else
 		return a3xx_getchipid(device);
+#endif
 }
 
 static inline bool _rev_match(unsigned int id, unsigned int entry)
@@ -1541,6 +1570,7 @@ adreno_probe(struct platform_device *pdev)
 
 	kgsl_pwrscale_init(device);
 	kgsl_pwrscale_attach_policy(device, ADRENO_DEFAULT_PWRSCALE_POLICY);
+	kgsl_pwrctrl_init_sysfs(device);
 
 	device->flags &= ~KGSL_FLAGS_SOFT_RESET;
 	return 0;
@@ -1661,6 +1691,7 @@ static int adreno_start(struct kgsl_device *device)
 	ft_detect_regs[0] = adreno_dev->gpudev->reg_rbbm_status;
 
 	/* Add A3XX specific registers for hang detection */
+#if __adreno_is_a3xx
 	if (adreno_is_a3xx(adreno_dev)) {
 		ft_detect_regs[6] = A3XX_RBBM_PERFCTR_SP_7_LO;
 		ft_detect_regs[7] = A3XX_RBBM_PERFCTR_SP_7_HI;
@@ -1669,6 +1700,7 @@ static int adreno_start(struct kgsl_device *device)
 		ft_detect_regs[10] = A3XX_RBBM_PERFCTR_SP_5_LO;
 		ft_detect_regs[11] = A3XX_RBBM_PERFCTR_SP_5_HI;
 	}
+#endif
 
 	status = kgsl_mmu_start(device);
 	if (status)
@@ -3263,8 +3295,6 @@ void adreno_regwrite(struct kgsl_device *device, unsigned int offsetwords,
 
 	if (!in_interrupt())
 		kgsl_pre_hwaccess(device);
-
-	kgsl_trace_regwrite(device, offsetwords, value);
 
 	kgsl_cffdump_regwrite(device->id, offsetwords << 2, value);
 	reg = (unsigned int *)(device->reg_virt + (offsetwords << 2));

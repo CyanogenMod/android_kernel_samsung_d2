@@ -580,21 +580,14 @@ static void msm_rpm_initialize_notification(void)
 int msm_rpm_local_request_is_outstanding(void)
 {
 	unsigned long flags;
-	int outstanding = 0;
+	int outstanding;
 
-	if (!spin_trylock_irqsave(&msm_rpm_lock, flags))
-		goto local_request_is_outstanding_exit;
+	if (!spin_trylock_irqsave(&msm_rpm_irq_lock, flags))
+		return 1;
 
-	if (!spin_trylock(&msm_rpm_irq_lock))
-		goto local_request_is_outstanding_unlock;
+	outstanding = msm_rpm_request != NULL;
+	spin_unlock_irqrestore(&msm_rpm_irq_lock, flags);
 
-	outstanding = (msm_rpm_request != NULL);
-	spin_unlock(&msm_rpm_irq_lock);
-
-local_request_is_outstanding_unlock:
-	spin_unlock_irqrestore(&msm_rpm_lock, flags);
-
-local_request_is_outstanding_exit:
 	return outstanding;
 }
 

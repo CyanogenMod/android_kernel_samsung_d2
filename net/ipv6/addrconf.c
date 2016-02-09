@@ -92,7 +92,7 @@
 #include <linux/export.h>
 
 /* Set to 3 to get tracing... */
-#define ACONF_DEBUG 2
+#define ACONF_DEBUG 0
 
 #if ACONF_DEBUG >= 3
 #define ADBG(x) printk x

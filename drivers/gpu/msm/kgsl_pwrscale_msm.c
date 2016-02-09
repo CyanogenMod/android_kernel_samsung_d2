@@ -125,7 +125,6 @@ static void msm_busy(struct kgsl_device *device,
 	struct msm_priv *priv = pwrscale->priv;
 	if (priv->enabled && !priv->gpu_busy) {
 		msm_dcvs_idle(priv->dcvs_core_id, MSM_DCVS_IDLE_EXIT, 0);
-		trace_kgsl_mpdcvs(device, 1);
 		priv->gpu_busy = 1;
 	}
 	return;
@@ -140,7 +139,6 @@ static void msm_idle(struct kgsl_device *device,
 		if (device->ftbl->isidle(device)) {
 			msm_dcvs_idle(priv->dcvs_core_id,
 					MSM_DCVS_IDLE_ENTER, 0);
-			trace_kgsl_mpdcvs(device, 0);
 			priv->gpu_busy = 0;
 		}
 	return;
@@ -153,7 +151,6 @@ static void msm_sleep(struct kgsl_device *device,
 
 	if (priv->enabled && priv->gpu_busy) {
 		msm_dcvs_idle(priv->dcvs_core_id, MSM_DCVS_IDLE_ENTER, 0);
-		trace_kgsl_mpdcvs(device, 0);
 		priv->gpu_busy = 0;
 	}
 

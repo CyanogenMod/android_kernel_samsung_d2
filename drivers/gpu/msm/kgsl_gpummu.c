@@ -370,8 +370,6 @@ void kgsl_gpummu_destroy_pagetable(void *mmu_specific_pt)
 	kgsl_ptpool_free((struct kgsl_ptpool *)kgsl_driver.ptpool,
 				gpummu_pt->base.hostptr);
 
-	kgsl_driver.stats.coherent -= KGSL_PAGETABLE_SIZE;
-
 	kfree(gpummu_pt->tlbflushfilter.base);
 
 	kfree(gpummu_pt);
@@ -412,9 +410,6 @@ static void kgsl_gpummu_pagefault(struct kgsl_mmu *mmu)
 			reg & ~(PAGE_SIZE - 1),
 			kgsl_mmu_get_ptname_from_ptbase(mmu, ptbase),
 			reg & 0x02 ? "WRITE" : "READ", (reg >> 4) & 0xF);
-	trace_kgsl_mmu_pagefault(mmu->device, reg & ~(PAGE_SIZE - 1),
-			kgsl_mmu_get_ptname_from_ptbase(mmu, ptbase),
-			reg & 0x02 ? "WRITE" : "READ");
 }
 
 static void *kgsl_gpummu_create_pagetable(void)

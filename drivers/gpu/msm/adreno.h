@@ -13,6 +13,58 @@
 #ifndef __ADRENO_H
 #define __ADRENO_H
 
+#if !CONFIG_AXXX_REV
+#define __adreno_is_a200 (1)
+#define __adreno_is_a203 (1)
+#define __adreno_is_a205 (1)
+#define __adreno_is_a20x (1)
+#define __adreno_is_a220 (1)
+#define __adreno_is_a225 (1)
+#define __adreno_is_a22x (1)
+#define __adreno_is_a2xx (1)
+#define __adreno_is_a3xx (1)
+#define __adreno_is_a305 (1)
+#define __adreno_is_a320 (1)
+#define __adreno_is_a330 (1)
+#else
+#define adreno_is_a200(dev) \
+	(CONFIG_AXXX_REV == 200)
+#define adreno_is_a203(dev) \
+	(CONFIG_AXXX_REV == 203)
+#define adreno_is_a205(dev) \
+	(CONFIG_AXXX_REV == 205)
+#define adreno_is_a20x(dev) \
+	(CONFIG_AXXX_REV >= 200 && CONFIG_AXXX_REV < 220)
+#define adreno_is_a220(dev) \
+	(CONFIG_AXXX_REV == 220)
+#define adreno_is_a225(dev) \
+	(CONFIG_AXXX_REV == 225)
+#define adreno_is_a22x(dev) \
+	(CONFIG_AXXX_REV >= 220 && CONFIG_AXXX_REV < 300)
+#define adreno_is_a2xx(dev) \
+	(CONFIG_AXXX_REV >= 200 && CONFIG_AXXX_REV < 300)
+#define adreno_is_a3xx(dev) \
+	(CONFIG_AXXX_REV >= 300)
+#define adreno_is_a305(dev) \
+	(CONFIG_AXXX_REV == 305)
+#define adreno_is_a320(dev) \
+	(CONFIG_AXXX_REV == 320)
+#define adreno_is_a330(dev) \
+	(CONFIG_AXXX_REV == 330)
+#define __adreno_is_a200 adreno_is_a200(0)
+#define __adreno_is_a203 adreno_is_a203(0)
+#define __adreno_is_a205 adreno_is_a205(0)
+#define __adreno_is_a20x adreno_is_a20x(0)
+#define __adreno_is_a220 adreno_is_a220(0)
+#define __adreno_is_a225 adreno_is_a225(0)
+#define __adreno_is_a22x adreno_is_a22x(0)
+#define __adreno_is_a2xx adreno_is_a2xx(0)
+#define __adreno_is_a3xx adreno_is_a3xx(0)
+#define __adreno_is_a305 adreno_is_a305(0)
+#define __adreno_is_a320 adreno_is_a320(0)
+#define __adreno_is_a330 adreno_is_a330(0)
+#endif
+
 #include "kgsl_device.h"
 #include "adreno_drawctxt.h"
 #include "adreno_ringbuffer.h"
@@ -276,7 +328,13 @@ void adreno_regread(struct kgsl_device *device, unsigned int offsetwords,
 void adreno_regwrite(struct kgsl_device *device, unsigned int offsetwords,
 				unsigned int value);
 
+#ifdef CONFIG_DEBUG_FS
 int adreno_dump(struct kgsl_device *device, int manual);
+#else
+static inline int adreno_dump(struct kgsl_device *device, int manual)
+{ return 0; }
+#endif
+
 unsigned int adreno_a3xx_rbbm_clock_ctl_default(struct adreno_device
 							*adreno_dev);
 
@@ -296,8 +354,14 @@ void *adreno_snapshot(struct kgsl_device *device, void *snapshot, int *remain,
 
 int adreno_dump_and_exec_ft(struct kgsl_device *device);
 
+#ifdef CONFIG_DEBUG_FS
 void adreno_dump_rb(struct kgsl_device *device, const void *buf,
 			 size_t len, int start, int size);
+#else
+static inline void adreno_dump_rb(struct kgsl_device *device, const void *buf,
+	size_t len, int start, int size)
+{ return; }
+#endif
 
 unsigned int adreno_ft_detect(struct kgsl_device *device,
 						unsigned int *prev_reg_val);
@@ -312,6 +376,7 @@ int adreno_perfcounter_put(struct adreno_device *adreno_dev,
 int adreno_ft_init_sysfs(struct kgsl_device *device);
 void adreno_ft_uninit_sysfs(struct kgsl_device *device);
 
+#if !CONFIG_AXXX_REV
 static inline int adreno_is_a200(struct adreno_device *adreno_dev)
 {
 	return (adreno_dev->gpurev == ADRENO_REV_A200);
@@ -378,6 +443,7 @@ static inline int adreno_is_a330v2(struct adreno_device *adreno_dev)
 	return ((adreno_dev->gpurev == ADRENO_REV_A330) &&
 		(ADRENO_CHIPID_PATCH(adreno_dev->chip_id) > 0));
 }
+#endif
 
 static inline int adreno_rb_ctxtswitch(unsigned int *cmd)
 {
@@ -539,18 +605,23 @@ static inline void adreno_debugfs_init(struct kgsl_device *device) { }
 static inline void adreno_set_protected_registers(struct kgsl_device *device,
 	unsigned int *index, unsigned int reg, int mask)
 {
+#if !CONFIG_AXXX_REV
 	struct adreno_device *adreno_dev = ADRENO_DEVICE(device);
+#endif
 	unsigned int val;
 	unsigned int protect_reg_offset;
 
 	/* There are only 16 registers available */
 	BUG_ON(*index >= 16);
 
+#if __adreno_is_a3xx
 	if (adreno_is_a3xx(adreno_dev)) {
 		val = 0x60000000 | ((mask & 0x1F) << 24) |
 			((reg << 2) & 0x1FFFF);
 		protect_reg_offset = A3XX_CP_PROTECT_REG_0;
-	} else  if (adreno_is_a2xx(adreno_dev)) {
+	} else
+#endif
+	if (adreno_is_a2xx(adreno_dev)) {
 		val = 0xc0000000 | ((reg << 2) << 16) | (mask & 0xffff);
 		protect_reg_offset = REG_RBBM_PROTECT_0;
 	} else {

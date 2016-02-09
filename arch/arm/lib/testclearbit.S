@@ -12,4 +12,4 @@
 #include "bitops.h"
                 .text
 
-testop	_test_and_clear_bit, bicne, strne
+testop	_test_and_clear_bit, bic, ne

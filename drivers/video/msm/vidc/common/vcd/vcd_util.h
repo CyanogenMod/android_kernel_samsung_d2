@@ -15,7 +15,7 @@
 #include <media/msm/vidc_type.h>
 #include <media/msm/vcd_api.h>
 
-#if DEBUG
+#ifdef DEBUG
 
 #define VCD_MSG_LOW(xx_fmt...)		printk(KERN_INFO "\n\t* " xx_fmt)
 #define VCD_MSG_MED(xx_fmt...)		printk(KERN_INFO "\n  * " xx_fmt)

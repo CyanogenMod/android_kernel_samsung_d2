@@ -43,15 +43,8 @@ static DEFINE_SPINLOCK(event_setup_lock);
 static struct hrtimer event_hrtimer;
 static enum hrtimer_restart event_hrtimer_cb(struct hrtimer *hrtimer);
 
-static int msm_event_debug_mask;
-module_param_named(
-	debug_mask, msm_event_debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP
-);
-
-enum {
-	MSM_EVENT_TIMER_DEBUG = 1U << 0,
-};
-
+#define msm_event_debug_mask (0)
+#define MSM_EVENT_TIMER_DEBUG (~0)
 
 /**
  * add_event_timer() : Add a wakeup event. Intended to be called

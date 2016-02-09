@@ -35,8 +35,6 @@
 #include <asm/types.h>
 #include "fb_draw.h"
 
-#define DEBUG
-
 #ifdef DEBUG
 #define DPRINTK(fmt, args...) printk(KERN_DEBUG "%s: " fmt,__func__,## args)
 #else

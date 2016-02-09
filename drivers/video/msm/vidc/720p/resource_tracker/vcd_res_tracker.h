@@ -41,7 +41,7 @@ struct res_trk_context {
 	enum ddl_mem_area res_mem_type;
 };
 
-#if DEBUG
+#ifdef DEBUG
 
 #define VCDRES_MSG_LOW(xx_fmt...)	printk(KERN_INFO "\n\t* " xx_fmt)
 #define VCDRES_MSG_MED(xx_fmt...)	printk(KERN_INFO "\n  * " xx_fmt)

@@ -18,7 +18,7 @@
 #ifndef _MDP4_VIDEO_ENHANCE_H_
 #define _MDP4_VIDEO_ENHANCE_H_
 
-#define BROWSER_COLOR_TONE_SET
+//#define BROWSER_COLOR_TONE_SET
 
 #define SIG_MDNIE_UI_MODE				0
 #define SIG_MDNIE_VIDEO_MODE			1
@@ -52,10 +52,11 @@
 #define SIG_MDNIE_BROWSER_TONE3	42
 #endif
 void init_mdnie_class(void);
-void lut_tune(int num, unsigned int *pLutTable);
+void lut_tune(int num, u8 *pLutTable);
 void sharpness_tune(int num);
 int is_negativeMode_on(void);
 int s3c_mdnie_start(void);
 int s3c_mdnie_off(void);
+void reenable_mdnie(void);
 
 #endif /*_MDP4_VIDEO_ENHANCE_H_*/

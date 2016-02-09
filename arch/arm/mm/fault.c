@@ -139,6 +139,10 @@ void show_pte(struct mm_struct *mm, unsigned long addr)
 static void
 __do_kernel_fault(struct mm_struct *mm, unsigned long addr, unsigned int fsr,
 		  struct pt_regs *regs)
+	__attribute__((hot));
+static void
+__do_kernel_fault(struct mm_struct *mm, unsigned long addr, unsigned int fsr,
+		  struct pt_regs *regs)
 {
 	/*
 	 * Are we prepared to handle this kernel fault?

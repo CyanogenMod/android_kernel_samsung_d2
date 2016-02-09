@@ -34,11 +34,7 @@ enum {
 	MSM_SPM_DEBUG_VCTL = 1U << 1,
 };
 
-static int msm_spm_debug_mask;
-module_param_named(
-	debug_mask, msm_spm_debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP
-);
-
+#define msm_spm_debug_mask (0)
 
 static uint32_t msm_spm_reg_offsets_v1[MSM_SPM_REG_NR] = {
 	[MSM_SPM_REG_SAW2_SECURE]		= 0x00,
@@ -255,7 +251,7 @@ void msm_spm_drv_flush_seq_entry(struct msm_spm_driver_data *dev)
 }
 
 int msm_spm_drv_write_seq_data(struct msm_spm_driver_data *dev,
-		uint8_t *cmd, uint32_t *offset)
+		const uint8_t *cmd, uint32_t *offset)
 {
 	uint32_t cmd_w;
 	uint32_t offset_w = *offset / 4;

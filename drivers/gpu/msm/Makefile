@@ -2,7 +2,6 @@ ccflags-y := -Iinclude/drm -Idrivers/gpu/msm
 
 msm_kgsl_core-y = \
 	kgsl.o \
-	kgsl_trace.o \
 	kgsl_sharedmem.o \
 	kgsl_pwrctrl.o \
 	kgsl_pwrscale.o \
@@ -26,10 +25,8 @@ msm_adreno-y += \
 	adreno_postmortem.o \
 	adreno_snapshot.o \
 	adreno_a2xx.o \
-	adreno_a2xx_trace.o \
 	adreno_a2xx_snapshot.o \
 	adreno_a3xx.o \
-	adreno_a3xx_trace.o \
 	adreno_a3xx_snapshot.o \
 	adreno.o
 
@@ -47,3 +44,4 @@ msm_z180-objs = $(msm_z180-y)
 obj-$(CONFIG_MSM_KGSL) += msm_kgsl_core.o
 obj-$(CONFIG_MSM_KGSL) += msm_adreno.o
 obj-$(CONFIG_MSM_KGSL_2D) += msm_z180.o
+obj-$(CONFIG_MSM_KGSL_SIMPLE_GOV) += simple_gpu_algorithm.o

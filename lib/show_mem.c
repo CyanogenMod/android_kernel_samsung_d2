@@ -9,6 +9,7 @@
 #include <linux/nmi.h>
 #include <linux/quicklist.h>
 
+void show_mem(unsigned int filter) __attribute__ ((weak));
 void show_mem(unsigned int filter)
 {
 	pg_data_t *pgdat;

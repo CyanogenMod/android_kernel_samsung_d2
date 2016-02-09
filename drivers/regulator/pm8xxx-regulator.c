@@ -31,10 +31,7 @@ enum {
 	PM8XXX_VREG_DEBUG_WRITES	= BIT(3), /* SSBI writes */
 };
 
-static int pm8xxx_vreg_debug_mask;
-module_param_named(
-	debug_mask, pm8xxx_vreg_debug_mask, int, S_IRUSR | S_IWUSR
-);
+#define pm8xxx_vreg_debug_mask (0)
 
 /* Common Masks */
 #define REGULATOR_ENABLE_MASK		0x80

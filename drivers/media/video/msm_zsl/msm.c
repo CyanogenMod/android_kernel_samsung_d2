@@ -2771,7 +2771,7 @@ int msm_sensor_register(struct platform_device *pdev,
 		pr_err("%s: failed to detect %s\n",
 			__func__,
 			sdata->sensor_name);
-		msm_camio_probe_off(pdev);
+		//msm_camio_probe_off(pdev);
 		kzfree(sdev);
 		kzfree(pcam);
 		return rc;

@@ -205,13 +205,7 @@ static void z180_dump_ib(struct kgsl_device *device)
  */
 int z180_dump(struct kgsl_device *device, int manual)
 {
-	struct z180_device *z180_dev = Z180_DEVICE(device);
-
 	mb();
-
-	KGSL_LOG_DUMP(device, "Retired Timestamp: %d\n", z180_dev->timestamp);
-	KGSL_LOG_DUMP(device,
-			"Current Timestamp: %d\n", z180_dev->current_timestamp);
 
 	/* Dump ringbuffer */
 	z180_dump_ringbuffer(device);

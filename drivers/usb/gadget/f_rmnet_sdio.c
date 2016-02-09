@@ -1414,7 +1414,9 @@ rmnet_sdio_unbind(struct usb_configuration *c, struct usb_function *f)
 		clear_bit(RMNET_SDIO_CH_OPEN, &dev->ctrl_ch_status);
 	}
 
+#ifdef CONFIG_DEBUG_FS
 	debugfs_remove_recursive(dev->dent);
+#endif
 
 	kfree(dev);
 }

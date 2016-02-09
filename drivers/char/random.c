@@ -255,6 +255,8 @@
 #include <linux/fips.h>
 #include <linux/ptrace.h>
 #include <linux/kmemcheck.h>
+#include <linux/freezer.h>
+#include <linux/kthread.h>
 
 #ifdef CONFIG_GENERIC_HARDIRQS
 # include <linux/irq.h>
@@ -283,23 +285,27 @@
  * The minimum number of bits of entropy before we wake up a read on
  * /dev/random.  Should be enough to do a significant reseed.
  */
-static int random_read_wakeup_thresh = 64;
+static int random_read_wakeup_thresh = 256;
 
 /*
  * If the entropy count falls under this number of bits, then we
  * should wake up processes which are selecting or polling on write
  * access to /dev/random.
  */
-static int random_write_wakeup_thresh = 128;
+static int random_write_wakeup_thresh = 1536;
 
 /*
  * When the input pool goes over trickle_thresh, start dropping most
  * samples to avoid wasting CPU time and reduce lock contention.
  */
 
-static int trickle_thresh __read_mostly = INPUT_POOL_WORDS * 28;
+static int trickle_thresh __read_mostly = INPUT_POOL_WORDS * 14;
 
-static DEFINE_PER_CPU(int, trickle_count);
+/*
+ * Track pool depletions.  Any time insufficient entropy is available for a
+ * read, this counter is incremented.
+ */
+static int random_depletions = 0;
 
 /*
  * A pool of size .poolwords is stirred with a primitive polynomial
@@ -400,7 +406,7 @@ static DECLARE_WAIT_QUEUE_HEAD(random_write_wait);
 static struct fasync_struct *fasync;
 
 #if 0
-static bool debug;
+static int debug;
 module_param(debug, bool, 0644);
 #define DEBUG_ENT(fmt, arg...) do { \
 	if (debug) \
@@ -442,7 +448,9 @@ struct entropy_store {
 
 static __u32 input_pool_data[INPUT_POOL_WORDS];
 static __u32 blocking_pool_data[OUTPUT_POOL_WORDS];
+#ifndef CONFIG_ISAAC_RANDOM
 static __u32 nonblocking_pool_data[OUTPUT_POOL_WORDS];
+#endif
 
 static struct entropy_store input_pool = {
 	.poolinfo = &poolinfo_table[0],
@@ -461,6 +469,7 @@ static struct entropy_store blocking_pool = {
 	.pool = blocking_pool_data
 };
 
+#ifndef CONFIG_ISAAC_RANDOM
 static struct entropy_store nonblocking_pool = {
 	.poolinfo = &poolinfo_table[1],
 	.name = "nonblocking",
@@ -468,6 +477,7 @@ static struct entropy_store nonblocking_pool = {
 	.lock = __SPIN_LOCK_UNLOCKED(&nonblocking_pool.lock),
 	.pool = nonblocking_pool_data
 };
+#endif
 
 static __u32 const twist_table[8] = {
 	0x00000000, 0x3b6e20c8, 0x76dc4190, 0x4db26158,
@@ -563,28 +573,6 @@ struct fast_pool {
 };
 
 /*
- * This is a fast mixing routine used by the interrupt randomness
- * collector.  It's hardcoded for an 128 bit pool and assumes that any
- * locks that might be needed are taken by the caller.
- */
-static void fast_mix(struct fast_pool *f, const void *in, int nbytes)
-{
-	const char	*bytes = in;
-	__u32		w;
-	unsigned	i = f->count;
-	unsigned	input_rotate = f->rotate;
-
-	while (nbytes--) {
-		w = rol32(*bytes++, input_rotate & 31) ^ f->pool[i & 3] ^
-			f->pool[(i + 1) & 3];
-		f->pool[i & 3] = (w >> 3) ^ twist_table[w & 7];
-		input_rotate += (i++ & 3) ? 7 : 14;
-	}
-	f->count = i;
-	f->rotate = input_rotate;
-}
-
-/*
  * Credit (or debit) the entropy store with n bits of entropy
  */
 static void credit_entropy_bits(struct entropy_store *r, int nbits)
@@ -650,154 +638,42 @@ void add_device_randomness(const void *buf, unsigned int size)
 
 	mix_pool_bytes(&input_pool, buf, size, NULL);
 	mix_pool_bytes(&input_pool, &time, sizeof(time), NULL);
+#ifndef CONFIG_ISAAC_RANDOM
 	mix_pool_bytes(&nonblocking_pool, buf, size, NULL);
 	mix_pool_bytes(&nonblocking_pool, &time, sizeof(time), NULL);
+#endif
 }
 EXPORT_SYMBOL(add_device_randomness);
-
-static struct timer_rand_state input_timer_state;
-
-/*
- * This function adds entropy to the entropy "pool" by using timing
- * delays.  It uses the timer_rand_state structure to make an estimate
- * of how many bits of entropy this call has added to the pool.
- *
- * The number "num" is also added to the pool - it should somehow describe
- * the type of event which just happened.  This is currently 0-255 for
- * keyboard scan codes, and 256 upwards for interrupts.
- *
- */
-static void add_timer_randomness(struct timer_rand_state *state, unsigned num)
-{
-	struct {
-		long jiffies;
-		unsigned cycles;
-		unsigned num;
-	} sample;
-	long delta, delta2, delta3;
-
-	preempt_disable();
-	/* if over the trickle threshold, use only 1 in 4096 samples */
-	if (input_pool.entropy_count > trickle_thresh &&
-	    ((__this_cpu_inc_return(trickle_count) - 1) & 0xfff))
-		goto out;
-
-	sample.jiffies = jiffies;
-	sample.cycles = get_cycles();
-	sample.num = num;
-	mix_pool_bytes(&input_pool, &sample, sizeof(sample), NULL);
-
-	/*
-	 * Calculate number of bits of randomness we probably added.
-	 * We take into account the first, second and third-order deltas
-	 * in order to make our estimate.
-	 */
-
-	if (!state->dont_count_entropy) {
-		delta = sample.jiffies - state->last_time;
-		state->last_time = sample.jiffies;
-
-		delta2 = delta - state->last_delta;
-		state->last_delta = delta;
-
-		delta3 = delta2 - state->last_delta2;
-		state->last_delta2 = delta2;
-
-		if (delta < 0)
-			delta = -delta;
-		if (delta2 < 0)
-			delta2 = -delta2;
-		if (delta3 < 0)
-			delta3 = -delta3;
-		if (delta > delta2)
-			delta = delta2;
-		if (delta > delta3)
-			delta = delta3;
-
-		/*
-		 * delta is now minimum absolute delta.
-		 * Round down by 1 bit on general principles,
-		 * and limit entropy entimate to 12 bits.
-		 */
-		credit_entropy_bits(&input_pool,
-				    min_t(int, fls(delta>>1), 11));
-	}
-out:
-	preempt_enable();
-}
 
 void add_input_randomness(unsigned int type, unsigned int code,
 				 unsigned int value)
 {
-	static unsigned char last_value;
+	static uint8_t buf[16];
+	static short pos = 15;
+	static short trickle;
+	static unsigned char last_value[2];
+	static unsigned long last_jiffies;
 
-	/* ignore autorepeat and the like */
-	if (value == last_value)
+	if (last_value[code & 1] == value >> 2)
 		return;
+	last_value[code & 1] = value >> 2;
 
-	DEBUG_ENT("input event\n");
-	last_value = value;
-	add_timer_randomness(&input_timer_state,
-			     (type << 4) ^ code ^ (code >> 4) ^ value);
+	buf[pos] = ror8(buf[pos], 2) ^ value;
+
+	if (last_jiffies == jiffies)
+		return;
+	last_jiffies = jiffies;
+
+	if (!pos--) {
+		pos = 15;
+		if (input_pool.entropy_count > trickle_thresh &&
+			trickle++ & 0xff)
+			return;
+		mix_pool_bytes(&input_pool, buf, sizeof(buf), NULL);
+		credit_entropy_bits(&input_pool, 8);
+	}
 }
 EXPORT_SYMBOL_GPL(add_input_randomness);
-
-static DEFINE_PER_CPU(struct fast_pool, irq_randomness);
-
-void add_interrupt_randomness(int irq, int irq_flags)
-{
-	struct entropy_store	*r;
-	struct fast_pool	*fast_pool = &__get_cpu_var(irq_randomness);
-	struct pt_regs		*regs = get_irq_regs();
-	unsigned long		now = jiffies;
-	__u32			input[4], cycles = get_cycles();
-
-	input[0] = cycles ^ jiffies;
-	input[1] = irq;
-	if (regs) {
-		__u64 ip = instruction_pointer(regs);
-		input[2] = ip;
-		input[3] = ip >> 32;
-	}
-
-	fast_mix(fast_pool, input, sizeof(input));
-
-	if ((fast_pool->count & 1023) &&
-	    !time_after(now, fast_pool->last + HZ))
-		return;
-
-	fast_pool->last = now;
-
-	r = nonblocking_pool.initialized ? &input_pool : &nonblocking_pool;
-	__mix_pool_bytes(r, &fast_pool->pool, sizeof(fast_pool->pool), NULL);
-	/*
-	 * If we don't have a valid cycle counter, and we see
-	 * back-to-back timer interrupts, then skip giving credit for
-	 * any entropy.
-	 */
-	if (cycles == 0) {
-		if (irq_flags & __IRQF_TIMER) {
-			if (fast_pool->last_timer_intr)
-				return;
-			fast_pool->last_timer_intr = 1;
-		} else
-			fast_pool->last_timer_intr = 0;
-	}
-	credit_entropy_bits(r, 1);
-}
-
-#ifdef CONFIG_BLOCK
-void add_disk_randomness(struct gendisk *disk)
-{
-	if (!disk || !disk->random)
-		return;
-	/* first major is 1, so we get >= 0x200 here */
-	DEBUG_ENT("disk event %d:%d\n",
-		  MAJOR(disk_devt(disk)), MINOR(disk_devt(disk)));
-
-	add_timer_randomness(disk->random, 0x100 + disk_devt(disk));
-}
-#endif
 
 /*********************************************************************
  *
@@ -865,6 +741,7 @@ static size_t account(struct entropy_store *r, size_t nbytes, int min,
 
 	/* Can we pull enough? */
 	if (r->entropy_count / 8 < min + reserved) {
+		random_depletions++;
 		nbytes = 0;
 	} else {
 		int entropy_count, orig;
@@ -1032,17 +909,42 @@ static ssize_t extract_entropy_user(struct entropy_store *r, void __user *buf,
 	return ret;
 }
 
+#ifdef CONFIG_ISAAC_RANDOM
+/* FIXME */
+void isaac_extract_seed(void *buf, int nbytes)
+{
+	ssize_t i;
+	__u8 tmp[EXTRACT_SIZE];
+	while (nbytes) {
+		extract_buf(&blocking_pool, tmp);
+		i = min_t(int, nbytes, EXTRACT_SIZE);
+		memcpy(buf, tmp, i);
+		buf += i;
+		nbytes -= i;
+	}
+}
+EXPORT_SYMBOL(isaac_extract_seed);
+#else
 /*
  * This function is the exported kernel interface.  It returns some
  * number of good random numbers, suitable for key generation, seeding
  * TCP sequence numbers, etc.  It does not use the hw random number
  * generator, if available; use get_random_bytes_arch() for that.
  */
-void get_random_bytes(void *buf, int nbytes)
+static void get_random_bytes(void *buf, int nbytes)
 {
-	extract_entropy(&nonblocking_pool, buf, nbytes, 0, 0);
+	ssize_t i;
+	__u8 tmp[EXTRACT_SIZE];
+	while (nbytes) {
+		extract_buf(&blocking_pool, tmp);
+		i = min_t(int, nbytes, EXTRACT_SIZE);
+		memcpy(buf, tmp, i);
+		buf += i;
+		nbytes -= i;
+	}
 }
 EXPORT_SYMBOL(get_random_bytes);
+#endif
 
 /*
  * This function will use the architecture-specific hardware random
@@ -1065,14 +967,14 @@ void get_random_bytes_arch(void *buf, int nbytes)
 
 		if (!arch_get_random_long(&v))
 			break;
-		
+
 		memcpy(p, &v, chunk);
 		p += chunk;
 		nbytes -= chunk;
 	}
 
 	if (nbytes)
-		extract_entropy(&nonblocking_pool, p, nbytes, 0, 0);
+		get_random_bytes(p, nbytes);
 }
 EXPORT_SYMBOL(get_random_bytes_arch);
 
@@ -1117,25 +1019,9 @@ static int rand_initialize(void)
 {
 	init_std_data(&input_pool);
 	init_std_data(&blocking_pool);
-	init_std_data(&nonblocking_pool);
 	return 0;
 }
-module_init(rand_initialize);
-
-#ifdef CONFIG_BLOCK
-void rand_initialize_disk(struct gendisk *disk)
-{
-	struct timer_rand_state *state;
-
-	/*
-	 * If kzalloc returns null, we just won't use that entropy
-	 * source.
-	 */
-	state = kzalloc(sizeof(struct timer_rand_state), GFP_KERNEL);
-	if (state)
-		disk->random = state;
-}
-#endif
+core_initcall(rand_initialize);
 
 static ssize_t
 random_read(struct file *file, char __user *buf, size_t nbytes, loff_t *ppos)
@@ -1193,11 +1079,13 @@ random_read(struct file *file, char __user *buf, size_t nbytes, loff_t *ppos)
 	return (count ? count : retval);
 }
 
+#ifndef CONFIG_ISAAC_RANDOM
 static ssize_t
 urandom_read(struct file *file, char __user *buf, size_t nbytes, loff_t *ppos)
 {
 	return extract_entropy_user(&nonblocking_pool, buf, nbytes);
 }
+#endif
 
 static unsigned int
 random_poll(struct file *file, poll_table * wait)
@@ -1236,7 +1124,7 @@ write_pool(struct entropy_store *r, const char __user *buffer, size_t count)
 	return 0;
 }
 
-static ssize_t random_write(struct file *file, const char __user *buffer,
+ssize_t random_write(struct file *file, const char __user *buffer,
 			    size_t count, loff_t *ppos)
 {
 	size_t ret;
@@ -1244,14 +1132,16 @@ static ssize_t random_write(struct file *file, const char __user *buffer,
 	ret = write_pool(&blocking_pool, buffer, count);
 	if (ret)
 		return ret;
+#ifndef CONFIG_ISAAC_RANDOM
 	ret = write_pool(&nonblocking_pool, buffer, count);
 	if (ret)
 		return ret;
+#endif
 
 	return (ssize_t)count;
 }
 
-static long random_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
+long random_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 {
 	int size, ent_count;
 	int __user *p = (int __user *)arg;
@@ -1311,6 +1201,7 @@ const struct file_operations random_fops = {
 	.llseek = noop_llseek,
 };
 
+#ifndef CONFIG_ISAAC_RANDOM
 const struct file_operations urandom_fops = {
 	.read  = urandom_read,
 	.write = random_write,
@@ -1318,6 +1209,7 @@ const struct file_operations urandom_fops = {
 	.fasync = random_fasync,
 	.llseek = noop_llseek,
 };
+#endif
 
 /***************************************************************
  * Random UUID interface
@@ -1437,42 +1329,30 @@ ctl_table random_table[] = {
 		.mode		= 0444,
 		.proc_handler	= proc_do_uuid,
 	},
+	{
+		.procname	= "pool_depletions",
+		.data		= &random_depletions,
+		.maxlen		= sizeof(int),
+		.mode		= 0444,
+		.proc_handler	= proc_dointvec,
+	},
 	{ }
 };
 #endif 	/* CONFIG_SYSCTL */
 
-static u32 random_int_secret[MD5_MESSAGE_BYTES / 4] ____cacheline_aligned;
-
-int random_int_secret_init(void)
-{
-	get_random_bytes(random_int_secret, sizeof(random_int_secret));
-	return 0;
-}
-
+#ifndef CONFIG_ISAAC_RANDOM
 /*
  * Get a random word for internal kernel use only. Similar to urandom but
  * with the goal of minimal entropy pool depletion. As a result, the random
  * value is not cryptographically secure but for several uses the cost of
  * depleting entropy is too high
  */
-DEFINE_PER_CPU(__u32 [MD5_DIGEST_WORDS], get_random_int_hash);
-unsigned int get_random_int(void)
-{
-	__u32 *hash;
+unsigned int get_random_int(void) {
 	unsigned int ret;
-
-	if (arch_get_random_int(&ret))
-		return ret;
-
-	hash = get_cpu_var(get_random_int_hash);
-
-	hash[0] += current->pid + jiffies + get_cycles();
-	md5_transform(hash, random_int_secret);
-	ret = hash[0];
-	put_cpu_var(get_random_int_hash);
-
+	get_random_bytes((u8 *)&ret, sizeof(ret));
 	return ret;
 }
+#endif
 
 /*
  * randomize_range() returns a start address such that

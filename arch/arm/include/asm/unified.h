@@ -61,6 +61,7 @@
  * macros expand to an empty string
  */
 #ifdef __ASSEMBLY__
+	.ifndef	__unified_macros_defined
 	.macro	it, cond
 	.endm
 	.macro	itt, cond
@@ -91,8 +92,11 @@
 	.endm
 	.macro	iteee, cond
 	.endm
+	__unified_macros_defined:
+	.endif
 #else	/* !__ASSEMBLY__ */
 __asm__(
+"	.ifndef	__unified_macros_defined\n"
 "	.macro	it, cond\n"
 "	.endm\n"
 "	.macro	itt, cond\n"
@@ -122,7 +126,9 @@ __asm__(
 "	.macro	iteet, cond\n"
 "	.endm\n"
 "	.macro	iteee, cond\n"
-"	.endm\n");
+"	.endm\n"
+"	__unified_macros_defined:\n"
+"	.endif\n");
 #endif	/* __ASSEMBLY__ */
 
 #endif	/* CONFIG_ARM_ASM_UNIFIED */

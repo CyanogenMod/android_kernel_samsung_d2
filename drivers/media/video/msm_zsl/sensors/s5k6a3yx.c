@@ -16,9 +16,7 @@
 #define SENSOR_NAME "s5k6a3yx"
 #define PLATFORM_DRIVER_NAME "msm_camera_s5k6a3yx"
 
-//#define CONFIG_S5C73M3
-
-DEFINE_MUTEX(s5k6a3yx_mut);
+static DEFINE_MUTEX(s5k6a3yx_mut);
 static struct msm_sensor_ctrl_t s5k6a3yx_s_ctrl;
 
 static struct msm_camera_i2c_reg_conf s5k6a3yx_start_settings[] = {

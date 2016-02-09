@@ -11,8 +11,9 @@
  *
  */
 
-#include "kgsl.h"
 #include "adreno.h"
+#if __adreno_is_a3xx
+#include "kgsl.h"
 #include "kgsl_snapshot.h"
 #include "a3xx_reg.h"
 
@@ -487,3 +488,4 @@ void *a3xx_snapshot(struct adreno_device *adreno_dev, void *snapshot,
 
 	return snapshot;
 }
+#endif

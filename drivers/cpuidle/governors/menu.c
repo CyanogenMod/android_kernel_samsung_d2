@@ -120,7 +120,7 @@ struct menu_device {
 	int		last_state_idx;
 	int             needs_update;
 
-	unsigned int	expected_us;
+	int		expected_us;
 	u64		predicted_us;
 	unsigned int	exit_us;
 	unsigned int	bucket;
@@ -170,8 +170,8 @@ static inline int performance_multiplier(void)
 {
 	int mult = 1;
 
-	/* for IO wait tasks (per cpu!) we add 5x each */
-	mult += 10 * nr_iowait_cpu(smp_processor_id());
+	/* for IO wait tasks (per cpu!) we add 2x each */
+	mult += 2 * nr_iowait_cpu(smp_processor_id());
 
 	return mult;
 }
@@ -276,6 +276,8 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 	data->last_state_idx = 0;
 	data->exit_us = 0;
 
+	dev->est_residency = 0;
+
 	/* Special case when user has set very strict latency requirement */
 	if (unlikely(latency_req == 0))
 		return 0;
@@ -284,7 +286,11 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 	t = ktime_to_timespec(tick_nohz_get_sleep_length());
 	data->expected_us =
 		t.tv_sec * USEC_PER_SEC + t.tv_nsec / NSEC_PER_USEC;
-
+	if (unlikely(data->expected_us <= 0)) {
+		data->expected_us = 0;
+		data->bucket = which_bucket(0);
+		return 0;
+	}
 
 	data->bucket = which_bucket(data->expected_us);
 
@@ -302,6 +308,8 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 					 RESOLUTION * DECAY);
 
 	repeat = detect_repeating_patterns(data);
+
+	dev->est_residency = data->predicted_us;
 
 	/*
 	 * We want to default to C1 (hlt), not to busy polling

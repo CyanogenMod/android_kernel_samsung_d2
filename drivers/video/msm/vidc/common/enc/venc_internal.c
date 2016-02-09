@@ -34,7 +34,7 @@
 #include "vcd_res_tracker_api.h"
 #include "venc_internal.h"
 
-#if DEBUG
+#ifdef DEBUG
 #define DBG(x...) printk(KERN_DEBUG x)
 #else
 #define DBG(x...)

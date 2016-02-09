@@ -444,13 +444,15 @@ static inline int soc_class_is_msm8960(void)
 
 static inline int soc_class_is_apq8064(void)
 {
-	return cpu_is_apq8064() || cpu_is_apq8064ab() || cpu_is_apq8064aa();
+	//return cpu_is_apq8064() || cpu_is_apq8064ab() || cpu_is_apq8064aa();
+	return 0;
 }
 
 static inline int soc_class_is_msm8930(void)
 {
-	return cpu_is_msm8930() || cpu_is_msm8930aa() || cpu_is_msm8930ab() ||
-	       cpu_is_msm8627();
+	/*return cpu_is_msm8930() || cpu_is_msm8930aa() || cpu_is_msm8930ab() ||
+		cpu_is_msm8627();*/
+	return 0;
 }
 
 #endif

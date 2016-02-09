@@ -43,7 +43,7 @@
 #include "mdm_private.h"
 #define MDM_PBLRDY_CNT		20
 
-static int mdm_debug_mask;
+#define mdm_debug_mask (0)
 
 static void mdm_peripheral_connect(struct mdm_modem_drv *mdm_drv)
 {
@@ -248,11 +248,6 @@ static void mdm_power_on_common(struct mdm_modem_drv *mdm_drv)
 		mdm_do_soft_power_on(mdm_drv);
 }
 
-static void debug_state_changed(int value)
-{
-	mdm_debug_mask = value;
-}
-
 static void mdm_status_changed(struct mdm_modem_drv *mdm_drv, int value)
 {
 	pr_debug("%s: id %d: value:%d\n", __func__,
@@ -304,7 +299,6 @@ static struct mdm_ops mdm_cb = {
 	.reset_mdm_cb = mdm_power_on_common,
 	.atomic_reset_mdm_cb = mdm_atomic_soft_reset,
 	.power_down_mdm_cb = mdm_power_down_common,
-	.debug_state_changed_cb = debug_state_changed,
 	.status_cb = mdm_status_changed,
 	.image_upgrade_cb = mdm_image_upgrade,
 };

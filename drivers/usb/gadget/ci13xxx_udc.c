@@ -150,6 +150,7 @@ struct ci13xxx_ebi_err_entry {
 	struct ci13xxx_ebi_err_entry *next;
 };
 
+#if 0
 struct ci13xxx_ebi_err_data {
 	u32 ebi_err_addr;
 	u32 apkt0;
@@ -157,6 +158,7 @@ struct ci13xxx_ebi_err_data {
 	struct ci13xxx_ebi_err_entry *ebi_err_entry;
 };
 static struct ci13xxx_ebi_err_data *ebi_err_data;
+#endif
 
 /******************************************************************************
  * HW block
@@ -1775,6 +1777,7 @@ __maybe_unused static int dbg_remove_files(struct device *dev)
 	return 0;
 }
 
+#if 0
 static void dump_usb_info(void *ignore, unsigned int ebi_addr,
 	unsigned int ebi_apacket0, unsigned int ebi_apacket1)
 {
@@ -1840,6 +1843,7 @@ static void dump_usb_info(void *ignore, unsigned int ebi_addr,
 	}
 	spin_unlock_irqrestore(udc->lock, flags);
 }
+#endif
 
 /******************************************************************************
  * UTIL block
@@ -3825,10 +3829,12 @@ static int udc_probe(struct ci13xxx_udc_driver *driver, struct device *dev,
 	pm_runtime_no_callbacks(&udc->gadget.dev);
 	pm_runtime_enable(&udc->gadget.dev);
 
+#if 0
 	retval = register_trace_usb_daytona_invalid_access(dump_usb_info,
 								NULL);
 	if (retval)
 		pr_err("Registering trace failed\n");
+#endif
 
 	_udc = udc;
 	return retval;
@@ -3863,16 +3869,20 @@ free_udc:
 static void udc_remove(void)
 {
 	struct ci13xxx *udc = _udc;
+#if 0
 	int retval;
+#endif
 
 	if (udc == NULL) {
 		err("EINVAL");
 		return;
 	}
+#if 0
 	retval = unregister_trace_usb_daytona_invalid_access(dump_usb_info,
 									NULL);
 	if (retval)
 		pr_err("Unregistering trace failed\n");
+#endif
 
 	usb_del_gadget_udc(&udc->gadget);
 

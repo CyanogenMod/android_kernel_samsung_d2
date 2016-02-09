@@ -380,11 +380,6 @@ static int kgsl_iommu_fault_handler(struct iommu_domain *domain,
 		kgsl_context_put(context);
 	}
 
-
-	trace_kgsl_mmu_pagefault(iommu_dev->kgsldev, addr,
-			kgsl_mmu_get_ptname_from_ptbase(mmu, ptbase),
-				write ? "write" : "read");
-
 	/*
 	 * We do not want the h/w to resume fetching data from an iommu unit
 	 * that has faulted, this is better for debugging as it will stall
@@ -912,7 +907,7 @@ static int kgsl_iommu_init_sync_lock(struct kgsl_mmu *mmu)
  *
  * Return - int - number of commands.
  */
-inline unsigned int kgsl_iommu_sync_lock(struct kgsl_mmu *mmu,
+static inline unsigned int kgsl_iommu_sync_lock(struct kgsl_mmu *mmu,
 						unsigned int *cmds)
 {
 	struct kgsl_device *device = mmu->device;
@@ -982,7 +977,7 @@ inline unsigned int kgsl_iommu_sync_lock(struct kgsl_mmu *mmu,
  *
  * Return - int - number of commands.
  */
-inline unsigned int kgsl_iommu_sync_unlock(struct kgsl_mmu *mmu,
+static inline unsigned int kgsl_iommu_sync_unlock(struct kgsl_mmu *mmu,
 					unsigned int *cmds)
 {
 	struct kgsl_device *device = mmu->device;

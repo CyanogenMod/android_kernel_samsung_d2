@@ -38,9 +38,7 @@
 #include <mach/bam_dmux.h>
 
 /* Debug message support */
-static int msm_rmnet_bam_debug_mask;
-module_param_named(debug_enable, msm_rmnet_bam_debug_mask,
-			int, S_IRUGO | S_IWUSR | S_IWGRP);
+#define msm_rmnet_bam_debug_mask (0)
 
 static unsigned long int msm_rmnet_bam_headroom_check_failure;
 module_param(msm_rmnet_bam_headroom_check_failure, ulong, S_IRUGO);

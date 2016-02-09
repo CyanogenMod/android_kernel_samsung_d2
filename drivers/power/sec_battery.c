@@ -2549,10 +2549,6 @@ static __devinit int sec_bat_probe(struct platform_device *pdev)
 	struct sec_bat_info *info;
 	int ret = 0;
 
-	if (!pdata->sec_battery_using()) {
-		pr_info("%s: SEC Battery driver Loading SKIP!!!\n", __func__);
-		return -EINVAL;
-	}
 	pr_info("%s: SEC Battery Driver Loading\n", __func__);
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
@@ -2680,15 +2676,6 @@ static __devinit int sec_bat_probe(struct platform_device *pdev)
 		info->measure_interval = MEASURE_CHG_INTERVAL;
 	else
 		info->measure_interval = MEASURE_DSG_INTERVAL;
-
-	if (!pdata->recharge_voltage) {
-		if (pdata->check_batt_type) {
-			if (pdata->check_batt_type()) {
-				pdata->max_voltage = 4350 * 1000;
-				pdata->recharge_voltage = 4280 * 1000;
-			}
-		}
-	}
 
 	if (pdata->max_voltage != 0) {
 		info->vmax = pdata->max_voltage;

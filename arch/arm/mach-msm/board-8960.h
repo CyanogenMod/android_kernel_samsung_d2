@@ -55,6 +55,14 @@ extern struct rpm_regulator_platform_data msm_rpm_regulator_pdata __devinitdata;
 extern void __init mms_tsp_input_init(void);
 #endif
 
+#define _GPAIR(i, t, v) (i == t) ? v :
+#define gpio_rev(i) ( \
+	_GPAIR(i,0,0)	_GPAIR(i,1,50)	_GPAIR(i,2,81)	_GPAIR(i,3,19)  \
+	_GPAIR(i,4,95)	_GPAIR(i,5,9)	_GPAIR(i,6,6)	_GPAIR(i,7,12)  \
+	_GPAIR(i,8,13)	_GPAIR(i,9,4)	_GPAIR(i,10,5)	_GPAIR(i,11,77) \
+	_GPAIR(i,12,80)	_GPAIR(i,13,35)	_GPAIR(i,14,36)	_GPAIR(i,15,37) \
+	_GPAIR(i,16,10)	_GPAIR(i,17,79)	_GPAIR(i,18,82)	(~0) )
+
 #if defined(CONFIG_MACH_ESPRESSO_VZW)
 extern void __init usb_switch_init(void);
 #endif
@@ -63,26 +71,12 @@ extern void __init usb_switch_init(void);
 	(machine_is_msm8960_cdp() && \
 		(socinfo_get_platform_subtype() == 1) \
 	)
-extern int gpio_rev(unsigned int);
+
+#ifdef CONFIG_SAMSUNG_CMC624
 extern int samsung_cmc624_on(int enable);
 extern int samsung_has_cmc624(void);
-#if defined(CONFIG_GPIO_SX150X) || defined(CONFIG_GPIO_SX150X_MODULE)
-enum {
-	GPIO_EXPANDER_IRQ_BASE = (PM8921_IRQ_BASE + PM8921_NR_IRQS),
-	GPIO_EXPANDER_GPIO_BASE = (PM8921_MPP_BASE + PM8921_NR_MPPS),
-	/* CAM Expander */
-	GPIO_CAM_EXPANDER_BASE = GPIO_EXPANDER_GPIO_BASE,
-	GPIO_CAM_GP_STROBE_READY = GPIO_CAM_EXPANDER_BASE,
-	GPIO_CAM_GP_AFBUSY,
-	GPIO_CAM_GP_STROBE_CE,
-	GPIO_CAM_GP_CAM1MP_XCLR,
-	GPIO_CAM_GP_CAMIF_RESET_N,
-	GPIO_CAM_GP_XMT_FLASH_INT,
-	GPIO_CAM_GP_LED_EN1,
-	GPIO_CAM_GP_LED_EN2,
-	GPIO_LIQUID_EXPANDER_BASE = GPIO_CAM_EXPANDER_BASE + 8,
-};
 #endif
+
 enum {
 	SX150X_CAM,
 	SX150X_LIQUID,
@@ -96,19 +90,15 @@ extern struct sx150x_platform_data msm8960_sx150x_data[];
 extern struct msm_camera_board_info msm8960_camera_board_info;
 
 int msm8960_get_cable_type(void);
-void msm8960_init_cam(void);
-void msm8960_init_fb(void);
-void msm8960_init_pmic(void);
-void msm8960_init_mmc(void);
-int msm8960_init_gpiomux(void);
-void __init configure_msm8960_power_grid(void);
-unsigned char msm8960_hdmi_as_primary_selected(void);
-void msm8960_allocate_fb_region(void);
-void msm8960_set_display_params(char *prim_panel, char *ext_panel);
-void msm8960_pm8921_gpio_mpp_init(void);
-void msm8960_mdp_writeback(struct memtype_reserve *reserve_table);
-void msm8960_init_battery(void);
-int msm8960_get_cable_status(void);
+void __init msm8960_init_cam(void);
+void __init msm8960_init_fb(void);
+void __init msm8960_init_pmic(void);
+void __init msm8960_init_mmc(void);
+int __init msm8960_init_gpiomux(void);
+void __init msm8960_allocate_fb_region(void);
+void __init msm8960_set_display_params(char *prim_panel, char *ext_panel);
+void __init msm8960_pm8921_gpio_mpp_init(void);
+void __init msm8960_mdp_writeback(struct memtype_reserve *reserve_table);
 extern int poweroff_charging;
 #define MSM_8960_GSBI4_QUP_I2C_BUS_ID 4
 #define MSM_8960_GSBI3_QUP_I2C_BUS_ID 3
@@ -126,7 +116,7 @@ extern void msm_otg_set_smartdock_state(bool enable);
 
 
 #if defined(CONFIG_BCM4334) || defined(CONFIG_BCM4334_MODULE)
-int brcm_wlan_init(void);
+int __init brcm_wlan_init(void);
 int brcm_wifi_status_register(
         void (*callback)(int card_present, void *dev_id), void *dev_id);
 #endif

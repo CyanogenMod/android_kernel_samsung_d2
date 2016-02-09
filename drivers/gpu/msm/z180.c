@@ -503,9 +503,6 @@ error_put:
 	kgsl_mem_entry_put(entry);
 error:
 
-	kgsl_trace_issueibcmds(device, context->id, ibdesc, numibs,
-		*timestamp, ctrl, result, 0);
-
 	return (int)result;
 }
 

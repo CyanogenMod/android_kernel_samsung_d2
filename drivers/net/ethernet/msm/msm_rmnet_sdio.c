@@ -36,9 +36,7 @@
 #include <mach/sdio_dmux.h>
 
 /* Debug message support */
-static int msm_rmnet_sdio_debug_mask;
-module_param_named(debug_enable, msm_rmnet_sdio_debug_mask,
-			int, S_IRUGO | S_IWUSR | S_IWGRP);
+#define msm_rmnet_sdio_debug_mask (0)
 
 #define DEBUG_MASK_LVL0 (1U << 0)
 #define DEBUG_MASK_LVL1 (1U << 1)

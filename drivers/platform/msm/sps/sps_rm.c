@@ -595,6 +595,7 @@ static int sps_rm_alloc(struct sps_pipe *pipe)
 	struct sps_connection *map;
 	int result = SPS_ERROR;
 
+#if 0
 	if (pipe->connect.sps_reserved != SPSRM_CLEAR) {
 		/*
 		 * Client did not call sps_get_config()	to init
@@ -611,6 +612,7 @@ static int sps_rm_alloc(struct sps_pipe *pipe)
 		pipe->connect.mode = mode;
 		pipe->connect.config = config;
 	}
+#endif
 	if (pipe->connect.config == SPSRM_CLEAR)
 		pipe->connect.config = SPS_CONFIG_DEFAULT;
 

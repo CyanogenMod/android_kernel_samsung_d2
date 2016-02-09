@@ -17,7 +17,8 @@ CFLAGS_REMOVE_return_address.o = -pg
 
 obj-y		:= elf.o entry-armv.o entry-common.o irq.o opcodes.o \
 		   process.o ptrace.o return_address.o sched_clock.o \
-		   setup.o signal.o stacktrace.o sys_arm.o time.o traps.o
+		   setup.o signal.o stacktrace.o sys_arm.o time.o traps.o \
+		   hotplug_mgmt.o
 
 obj-$(CONFIG_DEPRECATED_PARAM_STRUCT) += compat.o
 
@@ -32,6 +33,7 @@ obj-$(CONFIG_ISA_DMA)		+= dma-isa.o
 obj-$(CONFIG_PCI)		+= bios32.o isa.o
 obj-$(CONFIG_ARM_CPU_SUSPEND)	+= sleep.o suspend.o
 obj-$(CONFIG_SMP)		+= smp.o smp_tlb.o
+obj-$(CONFIG_ARM_AUTO_HOTPLUG)	+= auto_hotplug.o
 obj-$(CONFIG_HAVE_ARM_SCU)	+= smp_scu.o
 obj-$(CONFIG_HAVE_ARM_TWD)	+= smp_twd.o
 obj-$(CONFIG_ARM_ARCH_TIMER)	+= arch_timer.o
@@ -85,3 +87,6 @@ obj-$(CONFIG_DEBUG_LL)	+= debug.o
 obj-$(CONFIG_EARLY_PRINTK)	+= early_printk.o
 
 extra-y := $(head-y) init_task.o vmlinux.lds
+
+obj-$(CONFIG_ARM_TICKET_LOCKS) += spin_slowpath.o
+obj-y += read_slowpath.o write_slowpath.o

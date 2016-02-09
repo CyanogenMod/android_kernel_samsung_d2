@@ -36,6 +36,10 @@
 #include <linux/mfd/pmic8058.h>
 #include <linux/input.h>
 #include <linux/sii9234.h>
+#include <linux/kobject.h>
+#include <linux/sysfs.h>
+#include <linux/gen_attr.h>
+#include <linux/dkp.h>
 
 /* FSA9480 I2C registers */
 #define FSA9485_REG_DEVID		0x01
@@ -135,6 +139,13 @@
 #define	ADC_JIG_UART_ON		0x1d
 #define	ADC_CARDOCK		0x1d
 #define	ADC_OPEN		0x1f
+
+// msm_otg must be probed first
+extern int __devinit msm_otg_is_probed(void);
+
+/* (1 = enabled) | (2 = state_usb) | (4 = state_fast) */
+static int force_fast_charge;
+static int fast_charge_setting;
 
 int uart_connecting;
 EXPORT_SYMBOL(uart_connecting);
@@ -689,15 +700,20 @@ static int fsa9485_detect_dev(struct fsa9485_usbsw *usbsw)
 		if (val1 & DEV_USB || val2 & DEV_T2_USB_MASK) {
 			dev_info(&client->dev, "usb connect\n");
 
-			if (pdata->usb_cb)
+			if ((force_fast_charge & 1) && pdata->charger_cb) {
+				force_fast_charge |= 4;
+				pdata->charger_cb(FSA9485_ATTACHED);
+			} else if (pdata->usb_cb) {
+				force_fast_charge |= 2;
 				pdata->usb_cb(FSA9485_ATTACHED);
-			if (usbsw->mansw) {
-				ret = i2c_smbus_write_byte_data(client,
-				FSA9485_REG_MANSW1, usbsw->mansw);
+				if (usbsw->mansw) {
+					ret = i2c_smbus_write_byte_data(client,
+					FSA9485_REG_MANSW1, usbsw->mansw);
 
-				if (ret < 0)
-					dev_err(&client->dev,
-						"%s: err %d\n", __func__, ret);
+					if (ret < 0)
+						dev_err(&client->dev,
+							"%s: err %d\n", __func__, ret);
+				}
 			}
 		/* USB_CDP */
 		} else if (val1 & DEV_USB_CHG) {
@@ -866,8 +882,12 @@ static int fsa9485_detect_dev(struct fsa9485_usbsw *usbsw)
 		/* USB */
 		if (usbsw->dev1 & DEV_USB ||
 				usbsw->dev2 & DEV_T2_USB_MASK) {
-			if (pdata->usb_cb)
+			if ((force_fast_charge & 4) && pdata->charger_cb)
 				pdata->usb_cb(FSA9485_DETACHED);
+			else if ((force_fast_charge & 2) && pdata->usb_cb)
+				pdata->usb_cb(FSA9485_DETACHED);
+			else BUG();
+			force_fast_charge &= 1;
 		} else if (usbsw->dev1 & DEV_USB_CHG) {
 			if (pdata->usb_cdp_cb)
 				pdata->usb_cdp_cb(FSA9485_DETACHED);
@@ -1230,6 +1250,11 @@ static int __devinit fsa9485_probe(struct i2c_client *client,
 	struct input_dev *input;
 	struct device *switch_dev;
 
+	if (!msm_otg_is_probed()) {
+		pr_err("%s: msm_otg not probed yet, defer\n", __func__);
+		return -EPROBE_DEFER;
+	}
+
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EIO;
 
@@ -1393,6 +1418,33 @@ static int fsa9485_resume(struct i2c_client *client)
 	return 0;
 }
 
+/* This is kind of hacky, but most of this code already abuses local_usbsw. */
+static inline void ffc_migrate(void) {
+	struct fsa9485_platform_data *pdata;
+	force_fast_charge = (force_fast_charge & ~1 ) | fast_charge_setting;
+	if (!local_usbsw || !local_usbsw->pdata) return;
+	pdata = local_usbsw->pdata;
+	if (pdata->usb_cb && pdata->charger_cb) {
+		if (force_fast_charge == 3) {
+			/* enabled | state_usb */
+			pdata->usb_cb(FSA9485_DETACHED);
+			pdata->charger_cb(FSA9485_ATTACHED);
+			force_fast_charge = 5;
+		} else if (force_fast_charge == 4) {
+			/* !enabled | state_fast */
+			pdata->charger_cb(FSA9485_DETACHED);
+			pdata->usb_cb(FSA9485_ATTACHED);
+			force_fast_charge = 2;
+		}
+	}
+}
+static __GATTR_NAME(fast_charge_setting, force_fast_charge, 0, 1, ffc_migrate);
+static struct attribute *ffc_attrs[] = {
+	&gen_attr(force_fast_charge), NULL };
+static struct attribute_group ffc_attr_group ={
+	.attrs = ffc_attrs,
+	.name = "fast_charge"
+};
 
 static const struct i2c_device_id fsa9485_id[] = {
 	{"fsa9485", 0},
@@ -1412,12 +1464,17 @@ static struct i2c_driver fsa9485_i2c_driver = {
 
 static int __init fsa9485_init(void)
 {
+	if (sysfs_create_group(kernel_kobj, &ffc_attr_group))
+		pr_err("Unable to create fast_charge group!\n");
+	dkp_register(force_fast_charge);
 	return i2c_add_driver(&fsa9485_i2c_driver);
 }
 module_init(fsa9485_init);
 
 static void __exit fsa9485_exit(void)
 {
+	sysfs_remove_group(kernel_kobj, &ffc_attr_group);
+	dkp_unregister(force_fast_charge);
 	i2c_del_driver(&fsa9485_i2c_driver);
 }
 module_exit(fsa9485_exit);

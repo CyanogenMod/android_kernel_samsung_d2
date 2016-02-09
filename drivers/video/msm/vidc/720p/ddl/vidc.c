@@ -15,7 +15,7 @@
 #include <media/msm/vidc_type.h>
 #include "vidc.h"
 
-#if DEBUG
+#ifdef DEBUG
 #define DBG(x...) printk(KERN_DEBUG x)
 #else
 #define DBG(x...)

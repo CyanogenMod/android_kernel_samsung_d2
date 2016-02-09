@@ -173,6 +173,21 @@ static inline unsigned long cpufreq_scale(unsigned long old, u_int div, u_int mu
 #define CPUFREQ_GOV_STOP   2
 #define CPUFREQ_GOV_LIMITS 3
 
+#ifdef CONFIG_INTERACTION_HINTS
+#define CPUFREQ_GOV_NOINTERACT 0x10
+#define CPUFREQ_GOV_INTERACT 0x11
+
+enum {
+	INTERACT_ID_TOUCHSCREEN,
+	INTERACT_ID_SOFTKEY,
+	INTERACT_ID_HARDKEY,
+	INTERACT_ID_OTHER,
+};
+
+void cpufreq_want_interact_hints(int enable);
+void cpufreq_set_interactivity(int on, int idbit);
+#endif /* CONFIG_INTERACTION_HINTS */
+
 struct cpufreq_governor {
 	char	name[CPUFREQ_NAME_LEN];
 	int	(*governor)	(struct cpufreq_policy *policy,

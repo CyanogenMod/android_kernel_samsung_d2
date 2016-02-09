@@ -234,6 +234,10 @@ void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
 #define noinline
 #endif
 
+#ifndef __no_reorder
+#define __no_reorder
+#endif
+
 /*
  * Rather then using noinline to prevent stack consumption, use
  * noinline_for_stack instead.  For documentation reasons.
@@ -276,6 +280,10 @@ void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
 /* Simple shorthand for a section definition */
 #ifndef __section
 # define __section(S) __attribute__ ((__section__(#S)))
+#endif
+
+#ifndef __visible
+#define __visible
 #endif
 
 /* Are two types/vars the same type (ignoring qualifiers)? */

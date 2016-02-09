@@ -449,6 +449,7 @@ INT32 FsReleaseCache(struct super_block *sb)
 EXPORT_SYMBOL(FsReleaseCache);
 #endif
 
+#ifdef CONFIG_EXFAT_FS_MODULE
 static int __init init_exfat_core(void)
 {
 	int err;
@@ -473,5 +474,6 @@ static void __exit exit_exfat_core(void)
 
 module_init(init_exfat_core);
 module_exit(exit_exfat_core);
+#endif
 
 MODULE_LICENSE("GPL");

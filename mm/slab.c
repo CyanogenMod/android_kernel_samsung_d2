@@ -263,7 +263,7 @@ struct array_cache {
  * bootstrap: The caches do not work without cpuarrays anymore, but the
  * cpuarrays are allocated from the generic caches...
  */
-#define BOOT_CPUCACHE_ENTRIES	1
+#define BOOT_CPUCACHE_ENTRIES	4
 struct arraycache_init {
 	struct array_cache cache;
 	void *entries[BOOT_CPUCACHE_ENTRIES];
@@ -699,7 +699,7 @@ static inline void init_lock_keys(void)
 		init_node_lock_keys(node);
 }
 #else
-static void init_node_lock_keys(int q)
+static inline void init_node_lock_keys(int q)
 {
 }
 
@@ -707,11 +707,11 @@ static inline void init_lock_keys(void)
 {
 }
 
-static void slab_set_debugobj_lock_classes_node(struct kmem_cache *cachep, int node)
+static inline void slab_set_debugobj_lock_classes_node(struct kmem_cache *cachep, int node)
 {
 }
 
-static void slab_set_debugobj_lock_classes(struct kmem_cache *cachep)
+static inline void slab_set_debugobj_lock_classes(struct kmem_cache *cachep)
 {
 }
 #endif
@@ -848,6 +848,7 @@ static void __slab_error(const char *function, struct kmem_cache *cachep,
  * line
   */
 
+#if MAX_NUMNODES > 1
 static int use_alien_caches __read_mostly = 1;
 static int __init noaliencache_setup(char *s)
 {
@@ -855,6 +856,9 @@ static int __init noaliencache_setup(char *s)
 	return 1;
 }
 __setup("noaliencache", noaliencache_setup);
+#else
+#define use_alien_caches (0)
+#endif
 
 static int __init slab_max_order_setup(char *str)
 {
@@ -1503,8 +1507,10 @@ void __init kmem_cache_init(void)
 	int order;
 	int node;
 
+#if MAX_NUMNODES > 1
 	if (num_possible_nodes() == 1)
 		use_alien_caches = 0;
+#endif
 
 	for (i = 0; i < NUM_INIT_LISTS; i++) {
 		kmem_list3_init(&initkmem_list3[i]);
@@ -4124,6 +4130,7 @@ static int enable_cpucache(struct kmem_cache *cachep, gfp_t gfp)
 	 * The numbers are guessed, we should auto-tune as described by
 	 * Bonwick.
 	 */
+	/*
 	if (cachep->buffer_size > 131072)
 		limit = 1;
 	else if (cachep->buffer_size > PAGE_SIZE)
@@ -4134,6 +4141,9 @@ static int enable_cpucache(struct kmem_cache *cachep, gfp_t gfp)
 		limit = 54;
 	else
 		limit = 120;
+	*/
+	limit = (cachep->buffer_size > 32) ?
+		DIV_ROUND_UP(32768, cachep_buffer_size) : 1024;
 
 	/*
 	 * CPU bound tasks (e.g. network routing) can exhibit cpu bound

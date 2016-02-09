@@ -12,7 +12,11 @@
 #ifndef __ARCH_ARM_MACH_MSM_GPIO_COMMON_H
 #define __ARCH_ARM_MACH_MSM_GPIO_COMMON_H
 
+#ifdef CONFIG_SHOW_RESUME_IRQ
 extern int msm_show_resume_irq_mask;
+#else
+#define msm_show_resume_irq_mask (0)
+#endif
 
 unsigned __msm_gpio_get_inout(unsigned gpio);
 void __msm_gpio_set_inout(unsigned gpio, unsigned val);

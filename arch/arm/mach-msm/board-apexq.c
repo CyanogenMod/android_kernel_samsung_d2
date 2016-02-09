@@ -995,7 +995,7 @@ static void __init msm8960_reserve(void)
 {
 	msm8960_set_display_params(prim_panel_name, ext_panel_name);
 	msm_reserve();
-#ifdef CONFIG_ANDROID_RAM_CONSOLE
+#ifdef CONFIG_ANDROID_PERSISTENT_RAM
 	add_persistent_ram();
 #endif
 
@@ -5238,6 +5238,9 @@ static void __init samsung_apexq_init(void)
 #endif
 #ifdef CONFIG_ANDROID_RAM_CONSOLE
 	add_ramconsole_devices();
+#endif
+#ifdef CONFIG_PERSIST_ENTROPY
+	add_persistent_entropy_devices();
 #endif
 	msm8960_i2c_init();
 	msm8960_gfx_init();

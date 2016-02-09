@@ -1133,9 +1133,12 @@ vector_\name:
 	cmp	r0, #0
 	beq	10f
 	mrc	p15, 7, r0, c15, c0, 5
+	tst	r0, #0x10000
+	bne	10f
 	orr	r0, r0, #0x10000
 	mcr	p15, 7, r0, c15, c0, 5
-10:	isb
+	isb
+10:
 #endif
 	.endif
 	mov	r0, sp
@@ -1275,8 +1278,10 @@ vector_addrexcptn:
 vector_fiq:
 	subs	pc, lr, #4
 
+#ifdef CONFIG_MSM_KRAIT_WFE_FIXUP
 .krait_fixup:
 	.word	msm_krait_need_wfe_fixup
+#endif
 
 	.globl	vector_fiq_offset
 	.equ	vector_fiq_offset, vector_fiq

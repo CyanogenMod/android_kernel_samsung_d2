@@ -12,17 +12,20 @@
  */
 
 #ifndef __MSM_ROTATOR_IMEM_H__
+#define __MSM_ROTATOR_IMEM_H__
 
 enum {
 	ROTATOR_REQUEST,
 	JPEG_REQUEST
 };
 
+#if 0
 /* Allocates imem for the requested owner.
    Aquires a mutex, so DO NOT call from isr context */
 int msm_rotator_imem_allocate(int requestor);
 /* Frees imem if currently owned by requestor.
    Unlocks a mutex, so DO NOT call from isr context */
 void msm_rotator_imem_free(int requestor);
+#endif
 
 #endif

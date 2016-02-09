@@ -716,7 +716,6 @@ void mipi_dsi_clk_enable(void)
 	clk_prepare_enable(dsi_byte_div_clk);
 	clk_prepare_enable(dsi_esc_clk);
 	mipi_dsi_clk_on = 1;
-	mdp4_stat.dsi_clk_on++;
 }
 
 void mipi_dsi_clk_disable(void)
@@ -732,7 +731,6 @@ void mipi_dsi_clk_disable(void)
 	/* DSIPHY_PLL_CTRL_0, disable dsi pll */
 	MIPI_OUTP(MIPI_DSI_BASE + 0x0200, 0x0);
 	mipi_dsi_clk_on = 0;
-	mdp4_stat.dsi_clk_off++;
 }
 
 void mipi_dsi_phy_ctrl(int on)
